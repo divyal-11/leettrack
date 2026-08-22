@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>LeetTrack — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="dot"></span>LeetTrack</div>
+    <div class="actions">
+      <button id="exportBtn" class="ghost-btn">Export CSV</button>
+      <button id="clearBtn" class="ghost-btn danger">Clear data</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stat-strip" id="statStrip"></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Grind trail</h2>
+        <span class="panel-sub" id="trailSub"></span>
+      </div>
+      <div id="heatmap" class="heatmap"></div>
+      <div class="heat-legend">
+        <span>Less</span>
+        <span class="sq l0"></span><span class="sq l1"></span><span class="sq l2"></span><span class="sq l3"></span><span class="sq l4"></span>
+        <span>More</span>
+      </div>
+    </section>
+
+    <div class="two-col">
+      <section class="panel">
+        <div class="panel-head"><h2>By difficulty</h2></div>
+        <div id="diffBars" class="diff-bars"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Top topics</h2></div>
+        <div id="tagList" class="tag-list"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Session history</h2>
+        <div class="filters">
+          <select id="fDiff">
+            <option value="">All difficulty</option>
+            <option>Easy</option>
+            <option>Medium</option>
+            <option>Hard</option>
+          </select>
+          <select id="fStatus">
+            <option value="">All status</option>
+            <option value="solved">Solved</option>
+            <option value="unsolved">Unsolved</option>
+          </select>
+          <input id="fSearch" type="text" placeholder="Search problem…" />
+        </div>
+      </div>
+      <table class="history">
+        <thead>
+          <tr><th>Date</th><th>Problem</th><th>Difficulty</th><th>Topics</th><th>Time</th><th>Attempts</th><th>Status</th></tr>
+        </thead>
+        <tbody id="historyBody"></tbody>
+      </table>
+      <div id="emptyState" class="empty-state" style="display:none">
+        No sessions yet — open a LeetCode problem and the timer starts automatically.
+      </div>
+    </section>
+  </main>
+
+  <script src="storage.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

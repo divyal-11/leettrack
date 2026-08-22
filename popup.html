@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>LeetTrack</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <span class="dot"></span>
+      <span class="brand">LeetTrack</span>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="num" id="streak">0</div>
+        <div class="lbl">day streak</div>
+      </div>
+      <div class="card">
+        <div class="num" id="solved">0</div>
+        <div class="lbl">solved</div>
+      </div>
+      <div class="card">
+        <div class="num" id="rate">0%</div>
+        <div class="lbl">success rate</div>
+      </div>
+      <div class="card">
+        <div class="num" id="avg">0:00</div>
+        <div class="lbl">avg time</div>
+      </div>
+    </div>
+
+    <div class="today" id="today">0 problems today</div>
+
+    <button id="openDash" class="dash-btn">Open dashboard</button>
+  </div>
+
+  <script src="storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

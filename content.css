@@ -1,0 +1,118 @@
+#leettrack-widget {
+  all: initial;
+  position: fixed !important;
+  bottom: 20px !important;
+  right: 20px !important;
+  z-index: 2147483000 !important;
+  width: 190px;
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace !important;
+  background: #0B0F14;
+  border: 1px solid #1E2833;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  color: #EDEFF2;
+  overflow: hidden;
+}
+
+#leettrack-widget * {
+  box-sizing: border-box;
+  font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+
+#leettrack-widget .lt-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #131A22;
+  border-bottom: 1px solid #1E2833;
+  cursor: default;
+}
+
+#leettrack-widget .lt-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #E8A33D;
+  box-shadow: 0 0 6px #E8A33D;
+}
+
+#leettrack-widget .lt-name {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #8B98A5;
+  flex: 1;
+}
+
+#leettrack-widget .lt-diff {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+#leettrack-widget .lt-diff-easy { color: #4FC3A1; background: rgba(79,195,161,0.12); }
+#leettrack-widget .lt-diff-medium { color: #E8A33D; background: rgba(232,163,61,0.12); }
+#leettrack-widget .lt-diff-hard { color: #D9534F; background: rgba(217,83,79,0.12); }
+#leettrack-widget .lt-diff-unknown { color: #8B98A5; background: rgba(139,152,165,0.12); }
+
+#leettrack-widget .lt-min {
+  all: unset;
+  cursor: pointer;
+  color: #8B98A5;
+  font-size: 14px;
+  width: 16px;
+  text-align: center;
+}
+#leettrack-widget .lt-min:hover { color: #EDEFF2; }
+
+#leettrack-widget .lt-body {
+  padding: 12px 10px 10px;
+}
+
+#leettrack-widget.lt-collapsed .lt-body { display: none; }
+
+#leettrack-widget .lt-time {
+  font-size: 26px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.02em;
+  color: #EDEFF2;
+}
+
+#leettrack-widget .lt-meta {
+  text-align: center;
+  font-size: 10px;
+  color: #8B98A5;
+  margin-top: 2px;
+}
+
+#leettrack-widget .lt-row {
+  display: flex;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+#leettrack-widget .lt-btn {
+  all: unset;
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  padding: 6px 0;
+  border-radius: 5px;
+  background: #1E2833;
+  color: #EDEFF2;
+  cursor: pointer;
+}
+#leettrack-widget .lt-btn:hover { background: #29384A; }
+#leettrack-widget .lt-btn:disabled { opacity: 0.4; cursor: default; }
+#leettrack-widget .lt-btn-danger { color: #D9534F; }
+
+#leettrack-widget .lt-status {
+  margin-top: 8px;
+  font-size: 10px;
+  text-align: center;
+  min-height: 12px;
+}
+#leettrack-widget .lt-status-solved { color: #4FC3A1; }
+#leettrack-widget .lt-status-unsolved { color: #D9534F; }

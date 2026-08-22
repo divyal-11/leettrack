@@ -1,0 +1,82 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 240px;
+  background: #0B0F14;
+  color: #EDEFF2;
+  font-family: -apple-system, 'Inter', system-ui, sans-serif;
+}
+
+.wrap { padding: 14px; }
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #E8A33D;
+  box-shadow: 0 0 6px #E8A33D;
+}
+
+.brand {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: #EDEFF2;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.card {
+  background: #131A22;
+  border: 1px solid #1E2833;
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 600;
+  color: #E8A33D;
+}
+
+.lbl {
+  font-size: 10px;
+  color: #8B98A5;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.today {
+  text-align: center;
+  font-size: 11px;
+  color: #8B98A5;
+  margin-top: 12px;
+}
+
+.dash-btn {
+  all: unset;
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 12px;
+  padding: 9px 0;
+  background: #E8A33D;
+  color: #0B0F14;
+  font-weight: 600;
+  font-size: 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.dash-btn:hover { background: #f0b45c; }
