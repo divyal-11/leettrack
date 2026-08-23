@@ -19,6 +19,7 @@ function renderStatStrip(stats) {
   );
   const items = [
     [stats.streak.current, "day streak"],
+    [stats.streak.best, "best streak"],
     [stats.solvedCount, "solved"],
     [stats.successRate + "%", "success rate"],
     [fmtTime(stats.avgTimeOverall), "avg time"],
