@@ -1,3 +1,15 @@
+:root {
+  --bg: #0B0F14;
+  --panel: #131A22;
+  --panel-2: #171F29;
+  --line: #1E2833;
+  --text: #EDEFF2;
+  --muted: #8B98A5;
+  --amber: #E8A33D;
+  --teal: #4FC3A1;
+  --rose: #D9534F;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -6,8 +18,8 @@
 
 body {
   width: 240px;
-  background: #0B0F14;
-  color: #EDEFF2;
+  background: var(--bg);
+  color: var(--text);
   font-family: -apple-system, 'Inter', system-ui, sans-serif;
 }
 
@@ -26,15 +38,16 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #E8A33D;
-  box-shadow: 0 0 6px #E8A33D;
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
 }
 
 .brand {
   font-family: 'JetBrains Mono', monospace;
   font-size: 13px;
   letter-spacing: 0.04em;
-  color: #EDEFF2;
+  color: var(--text);
+  font-weight: 700;
 }
 
 .grid {
@@ -44,8 +57,8 @@ body {
 }
 
 .card {
-  background: #131A22;
-  border: 1px solid #1E2833;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 8px;
   text-align: center;
@@ -55,12 +68,12 @@ body {
   font-family: 'JetBrains Mono', monospace;
   font-size: 20px;
   font-weight: 600;
-  color: #E8A33D;
+  color: var(--amber);
 }
 
 .lbl {
   font-size: 10px;
-  color: #8B98A5;
+  color: var(--muted);
   margin-top: 2px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -69,8 +82,20 @@ body {
 .today {
   text-align: center;
   font-size: 11px;
-  color: #8B98A5;
+  color: var(--muted);
   margin-top: 12px;
+}
+
+.review-due {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--amber);
+  background: rgba(232, 163, 61, 0.1);
+  border: 1px solid rgba(232, 163, 61, 0.25);
+  border-radius: 6px;
+  padding: 5px 0;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .plan-btn {
@@ -80,17 +105,19 @@ body {
   text-align: center;
   margin-top: 12px;
   padding: 9px 0;
-  background: var(--amber);
-  color: #1E2833;
+  background: #E8A33D;
+  color: #0B0F14;
   font-weight: 700;
   font-size: 12px;
   border-radius: 7px;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(232, 163, 61, 0.25);
+  box-shadow: 0 2px 10px rgba(232, 163, 61, 0.35);
+  transition: background 0.15s ease;
 }
 
 .plan-btn:hover {
   background: #f0b45c;
+  color: #0B0F14;
 }
 
 .dash-btn {
@@ -100,17 +127,18 @@ body {
   text-align: center;
   margin-top: 6px;
   padding: 8px 0;
-  background: #1E2833;
+  background: #17202A;
   color: #EDEFF2;
   font-weight: 500;
   font-size: 11px;
   border-radius: 7px;
   cursor: pointer;
-  border: 1px solid var(--line);
+  border: 1px solid #283747;
+  transition: background 0.15s ease;
 }
 
 .dash-btn:hover {
-  background: #283747;
+  background: #233140;
 }
 
 .reminder-settings {
@@ -119,9 +147,9 @@ body {
   justify-content: space-between;
   margin-top: 14px;
   padding-top: 10px;
-  border-top: 1px solid #1E2833;
+  border-top: 1px solid var(--line);
   font-size: 11px;
-  color: #8B98A5;
+  color: var(--muted);
 }
 
 .reminder-toggle {
@@ -129,18 +157,18 @@ body {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  color: #EDEFF2;
+  color: var(--text);
 }
 
 .reminder-toggle input {
-  accent-color: #E8A33D;
+  accent-color: var(--amber);
   cursor: pointer;
 }
 
 .reminder-time {
-  background: #131A22;
-  border: 1px solid #1E2833;
-  color: #EDEFF2;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   border-radius: 4px;
@@ -148,6 +176,6 @@ body {
 }
 
 .reminder-time:focus {
-  border-color: #E8A33D;
+  border-color: var(--amber);
   outline: none;
 }
