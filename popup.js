@@ -1,11 +1,17 @@
 function fmt(sec) {
-  const m = Math.floor(sec / 60);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
+  const mm = String(m).padStart(2, "0");
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-chrome.runtime.sendMessage({ type: "GET_STATS" }, (res) => {
-  const { sessions, stats } = res;
+Promise.all([
+  new Promise((res) => chrome.runtime.sendMessage({ type: "GET_STATS" }, res)),
+  new Promise((res) => chrome.runtime.sendMessage({ type: "GET_REVIEW_QUEUE" }, res)),
+]).then(([statsRes, reviewRes]) => {
+  const { sessions, stats } = statsRes;
   document.getElementById("streak").textContent = stats.streak.current;
   document.getElementById("solved").textContent = stats.solvedCount;
   document.getElementById("rate").textContent = stats.successRate + "%";
@@ -14,6 +20,13 @@ chrome.runtime.sendMessage({ type: "GET_STATS" }, (res) => {
   const today = LeetTrackStorage.dayKey(Date.now());
   const todayCount = sessions.filter((s) => LeetTrackStorage.dayKey(s.timestamp) === today).length;
   document.getElementById("today").textContent = `${todayCount} problem${todayCount === 1 ? "" : "s"} today`;
+
+  const due = reviewRes.due || [];
+  if (due.length > 0) {
+    const el = document.getElementById("reviewDue");
+    el.style.display = "block";
+    el.textContent = `📅 ${due.length} review${due.length === 1 ? "" : "s"} due`;
+  }
 });
 
 document.getElementById("openDash").addEventListener("click", () => {
