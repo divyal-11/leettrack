@@ -11,13 +11,38 @@
   <header class="topbar">
     <div class="brand"><span class="dot"></span>LeetTrack</div>
     <div class="actions">
+      <a href="plan.html" class="ghost-btn highlight" style="text-decoration:none">📋 Today's Plan</a>
       <button id="exportBtn" class="ghost-btn">Export CSV</button>
       <button id="clearBtn" class="ghost-btn danger">Clear data</button>
     </div>
   </header>
 
   <main>
+    <!-- LeetCode Sync Bar -->
+    <section class="sync-strip" id="syncStrip">
+      <div class="sync-info">
+        <span class="sync-icon">🔄</span>
+        <span id="syncText">LeetCode Sync: not synced yet</span>
+      </div>
+      <button id="syncBtn" class="ghost-btn">Sync with LeetCode</button>
+    </section>
+
     <section class="stat-strip" id="statStrip"></section>
+
+    <!-- Topic Goals Panel -->
+    <section class="panel" id="goalsPanel">
+      <div class="panel-head">
+        <h2>🎯 Topic Goals</h2>
+        <span class="panel-sub" id="goalsSub">0 active targets</span>
+      </div>
+      <div id="goalsList" class="goals-list"></div>
+      <form id="goalForm" class="goal-form">
+        <input id="goalTopic" list="topicSuggestions" placeholder="Topic (e.g. Dynamic Programming)" required />
+        <datalist id="topicSuggestions"></datalist>
+        <input id="goalTarget" type="number" min="1" max="500" placeholder="Target solves" required />
+        <button type="submit" class="ghost-btn">Set Goal</button>
+      </form>
+    </section>
 
     <section class="panel">
       <div class="panel-head">

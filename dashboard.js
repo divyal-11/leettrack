@@ -1,5 +1,6 @@
 let ALL_SESSIONS = [];
 let ALL_STATS = null;
+let ALL_GOALS = {};
 
 function fmtTime(sec) {
   const h = Math.floor(sec / 3600);
@@ -31,6 +32,22 @@ function renderStatStrip(stats) {
     .join("");
 }
 
+// ── LeetCode Sync Strip ───────────────────────────────────────────────────────
+function renderLCSync(data) {
+  const textEl = document.getElementById("syncText");
+  const btn = document.getElementById("syncBtn");
+
+  if (!data) {
+    textEl.innerHTML = `LeetCode Sync: <span style="color:var(--muted)">Not synced yet (make sure you're logged into leetcode.com)</span>`;
+    return;
+  }
+
+  const minsAgo = Math.max(0, Math.round((Date.now() - data.fetchedAt) / 60000));
+  const timeStr = minsAgo === 0 ? "just now" : `${minsAgo}m ago`;
+
+  textEl.innerHTML = `LeetCode Profile: <span class="sync-badge">${data.totalSolved || 0} solved</span> (${data.easySolved || 0}E / ${data.mediumSolved || 0}M / ${data.hardSolved || 0}H) · synced ${timeStr}`;
+}
+
 // ── Heatmap ───────────────────────────────────────────────────────────────────
 function renderHeatmap(stats) {
   const days = 182; // ~26 weeks
@@ -56,6 +73,58 @@ function renderHeatmap(stats) {
   }
   document.getElementById("heatmap").innerHTML = cells.join("");
   document.getElementById("trailSub").textContent = `last ${days} days`;
+}
+
+// ── Topic Goals ───────────────────────────────────────────────────────────────
+function renderGoals(goals, sessions) {
+  ALL_GOALS = goals || {};
+  const entries = Object.entries(ALL_GOALS);
+  const subEl = document.getElementById("goalsSub");
+  const listEl = document.getElementById("goalsList");
+
+  subEl.textContent = `${entries.length} active target${entries.length === 1 ? "" : "s"}`;
+
+  if (!entries.length) {
+    listEl.innerHTML = '<div class="tag-empty">No active topic goals. Set a target below (e.g. Dynamic Programming → 30).</div>';
+    return;
+  }
+
+  listEl.innerHTML = entries.map(([topic, g]) => {
+    const solved = sessions.filter(
+      (s) => (s.tags || []).includes(topic) && s.status === "solved"
+    ).length;
+    const pct = Math.min(100, Math.round((solved / g.target) * 100));
+
+    return `
+      <div class="goal-row">
+        <span class="goal-name" title="${topic}">${topic}</span>
+        <div class="goal-track">
+          <div class="goal-fill" style="width: ${pct}%"></div>
+        </div>
+        <span class="goal-nums">${solved}/${g.target} (${pct}%)</span>
+        <button class="goal-del-btn" data-topic="${topic.replace(/"/g, '&quot;')}" title="Delete goal">&times;</button>
+      </div>`;
+  }).join("");
+
+  listEl.querySelectorAll(".goal-del-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const topic = btn.dataset.topic;
+      chrome.runtime.sendMessage({ type: "DELETE_GOAL", topic }, loadAndRender);
+    });
+  });
+}
+
+function populateTopicSuggestions(tagStats) {
+  const datalist = document.getElementById("topicSuggestions");
+  const commonTopics = [
+    "Array", "String", "Hash Table", "Dynamic Programming", "Math",
+    "Sorting", "Greedy", "Depth-First Search", "Binary Search", "Tree",
+    "Breadth-First Search", "Matrix", "Two Pointers", "Bit Manipulation",
+    "Stack", "Heap (Priority Queue)", "Graph", "Backtracking", "Design"
+  ];
+  const discovered = (tagStats || []).map((t) => t.tag);
+  const all = [...new Set([...discovered, ...commonTopics])];
+  datalist.innerHTML = all.map((t) => `<option value="${t}"></option>`).join("");
 }
 
 // ── Difficulty Bars ───────────────────────────────────────────────────────────
@@ -90,7 +159,6 @@ function renderTags(stats) {
 }
 
 // ── Review Queue ──────────────────────────────────────────────────────────────
-// Shows SR cards whose next review date is today or overdue
 function renderReviewQueue(due) {
   const sub = document.getElementById("reviewSub");
   const list = document.getElementById("reviewList");
@@ -117,13 +185,12 @@ function renderReviewQueue(due) {
 }
 
 // ── Weak Spots ────────────────────────────────────────────────────────────────
-// Topics sorted by YOUR average struggle score (ascending = hardest for you first)
 function renderWeakSpots(stats) {
   const el = document.getElementById("weakSpots");
 
   const withScores = stats.tagStats
     .filter((t) => t.solved > 0)
-    .sort((a, b) => a.avgStruggle - b.avgStruggle) // lowest score = hardest first
+    .sort((a, b) => a.avgStruggle - b.avgStruggle)
     .slice(0, 8);
 
   if (!withScores.length) {
@@ -229,10 +296,15 @@ function loadAndRender() {
   Promise.all([
     new Promise((res) => chrome.runtime.sendMessage({ type: "GET_STATS" }, res)),
     new Promise((res) => chrome.runtime.sendMessage({ type: "GET_REVIEW_QUEUE" }, res)),
-  ]).then(([statsRes, reviewRes]) => {
+    new Promise((res) => chrome.runtime.sendMessage({ type: "GET_GOALS" }, res)),
+    new Promise((res) => chrome.runtime.sendMessage({ type: "GET_LC_SYNC" }, res)),
+  ]).then(([statsRes, reviewRes, goalsRes, syncRes]) => {
     ALL_SESSIONS = statsRes.sessions;
     ALL_STATS = statsRes.stats;
+    renderLCSync(syncRes?.data);
     renderStatStrip(ALL_STATS);
+    renderGoals(goalsRes?.goals, ALL_SESSIONS);
+    populateTopicSuggestions(ALL_STATS.tagStats);
     renderHeatmap(ALL_STATS);
     renderDiffBars(ALL_STATS);
     renderTags(ALL_STATS);
@@ -247,6 +319,38 @@ document.getElementById("fStatus").addEventListener("change", renderHistory);
 document.getElementById("fSearch").addEventListener("input", renderHistory);
 document.getElementById("exportBtn").addEventListener("click", exportCSV);
 
+// Topic Goal creation form
+document.getElementById("goalForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const topic = document.getElementById("goalTopic").value.trim();
+  const target = parseInt(document.getElementById("goalTarget").value, 10);
+  if (!topic || isNaN(target) || target <= 0) return;
+
+  chrome.runtime.sendMessage({ type: "SET_GOAL", topic, target }, () => {
+    document.getElementById("goalTopic").value = "";
+    document.getElementById("goalTarget").value = "";
+    loadAndRender();
+  });
+});
+
+// Sync LeetCode button
+document.getElementById("syncBtn").addEventListener("click", () => {
+  const btn = document.getElementById("syncBtn");
+  btn.textContent = "Syncing…";
+  btn.disabled = true;
+
+  chrome.runtime.sendMessage({ type: "SYNC_LEETCODE" }, (res) => {
+    btn.textContent = "Sync with LeetCode";
+    btn.disabled = false;
+    if (res?.data) {
+      renderLCSync(res.data);
+    } else {
+      alert("Could not fetch LeetCode data. Please make sure you are logged into https://leetcode.com in this browser.");
+    }
+  });
+});
+
+// Sortable history table
 document.querySelectorAll("table.history th[data-sort]").forEach((th) => {
   th.addEventListener("click", () => {
     if (sortCol === th.dataset.sort) {

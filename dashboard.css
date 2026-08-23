@@ -64,7 +64,110 @@ h2 {
   font-family: 'JetBrains Mono', monospace;
 }
 .ghost-btn:hover { border-color: var(--amber); color: var(--amber); }
+.ghost-btn.highlight {
+  background: rgba(232,163,61,0.15);
+  border-color: var(--amber);
+  color: var(--amber);
+  font-weight: 600;
+}
+.ghost-btn.highlight:hover {
+  background: var(--amber);
+  color: #0B0F14;
+}
 .ghost-btn.danger:hover { border-color: var(--rose); color: var(--rose); }
+
+/* Sync Strip */
+.sync-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  font-size: 12px;
+}
+.sync-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sync-badge {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--teal);
+  font-weight: 600;
+}
+
+/* Goals list & form */
+.goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.goal-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 90px 40px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.goal-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.goal-track {
+  height: 8px;
+  background: var(--panel-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.goal-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--amber) 0%, var(--teal) 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.goal-nums {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--muted);
+  text-align: right;
+  font-size: 11px;
+}
+.goal-del-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  text-align: center;
+}
+.goal-del-btn:hover { color: var(--rose); }
+.goal-form {
+  display: flex;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.goal-form input {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+}
+.goal-form input[type="text"], .goal-form input:not([type]) {
+  flex: 1;
+}
+.goal-form input[type="number"] {
+  width: 140px;
+}
+
 
 main {
   max-width: 980px;
