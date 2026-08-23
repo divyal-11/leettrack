@@ -6,6 +6,9 @@ const LeetTrackStorage = (() => {
   const SESSIONS_KEY = "sessions";
   const ACTIVE_PREFIX = "active_timer_";
   const SR_PREFIX = "sr_"; // spaced repetition card per slug
+  const GOALS_KEY = "topic_goals"; // { [topic]: { target: number } }
+  const LC_SYNC_KEY = "lc_sync"; // cached LeetCode GraphQL response
+  const NOTIF_SETTINGS_KEY = "notif_settings"; // { enabled, hour, minute }
 
   // Expected solve times (seconds) per difficulty — used for struggle scoring
   const EXPECTED_TIME = { Easy: 15 * 60, Medium: 30 * 60, Hard: 45 * 60 };
@@ -295,6 +298,131 @@ const LeetTrackStorage = (() => {
     };
   }
 
+  // ─── Topic Goals ──────────────────────────────────────────────────────────
+  function getGoals() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get([GOALS_KEY], (res) => resolve(res[GOALS_KEY] || {}));
+    });
+  }
+
+  function setGoal(topic, target) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get([GOALS_KEY], (res) => {
+        const goals = res[GOALS_KEY] || {};
+        goals[topic] = { target: Number(target) };
+        chrome.storage.local.set({ [GOALS_KEY]: goals }, resolve);
+      });
+    });
+  }
+
+  function deleteGoal(topic) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get([GOALS_KEY], (res) => {
+        const goals = res[GOALS_KEY] || {};
+        delete goals[topic];
+        chrome.storage.local.set({ [GOALS_KEY]: goals }, resolve);
+      });
+    });
+  }
+
+  // Merges session history with goals to return per-topic progress
+  function computeGoalProgress(sessions, goals, srCards) {
+    const today = dayKey(Date.now());
+    return Object.entries(goals).map(([topic, g]) => {
+      const topicSessions = sessions.filter(
+        (s) => (s.tags || []).includes(topic)
+      );
+      const solved = topicSessions.filter((s) => s.status === "solved").length;
+      const dueReviews = srCards.filter(
+        (c) => c.nextReview <= Date.now() && c.difficulty // approximate — SR cards don't store tags
+      ).length; // real due count comes from getDueReviews, this is a placeholder
+
+      const avgStruggle = (() => {
+        const withScore = topicSessions.filter((s) => s.status === "solved");
+        if (!withScore.length) return null;
+        return Math.round(
+          withScore.reduce((a, s) => a + computeStruggleScore(s), 0) / withScore.length
+        );
+      })();
+
+      const remaining = Math.max(0, g.target - solved);
+      const pct = Math.min(100, Math.round((solved / g.target) * 100));
+      const todaySolved = topicSessions.filter(
+        (s) => dayKey(s.timestamp) === today && s.status === "solved"
+      ).length;
+
+      return {
+        topic,
+        target: g.target,
+        solved,
+        remaining,
+        pct,
+        todaySolved,
+        avgStruggle,
+        pd: avgStruggle !== null ? personalDifficulty(avgStruggle) : null,
+      };
+    }).sort((a, b) => a.pct - b.pct); // most behind first
+  }
+
+  // ─── LeetCode Sync Cache ──────────────────────────────────────────────────
+  function getLCSyncData() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get([LC_SYNC_KEY], (res) => resolve(res[LC_SYNC_KEY] || null));
+    });
+  }
+
+  function saveLCSyncData(data) {
+    const record = { ...data, fetchedAt: Date.now() };
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ [LC_SYNC_KEY]: record }, () => resolve(record));
+    });
+  }
+
+  // ─── Notification Settings ────────────────────────────────────────────────
+  function getNotifSettings() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get([NOTIF_SETTINGS_KEY], (res) => {
+        resolve(res[NOTIF_SETTINGS_KEY] || { enabled: true, hour: 9, minute: 0 });
+      });
+    });
+  }
+
+  function saveNotifSettings(settings) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ [NOTIF_SETTINGS_KEY]: settings }, resolve);
+    });
+  }
+
+  // ─── Daily Plan ───────────────────────────────────────────────────────────
+  // Assembles the "Today's Plan" from reviews, goals, and weak spots
+  function computeDailyPlan(sessions, goals, dueReviews, tagStats) {
+    const today = dayKey(Date.now());
+    const todaySessions = sessions.filter((s) => dayKey(s.timestamp) === today);
+    const todaySolvedCount = todaySessions.filter((s) => s.status === "solved").length;
+
+    // Goal work: topics where remaining > 0, sorted by most-behind first
+    const goalWork = Object.entries(goals).map(([topic, g]) => {
+      const topicSolved = sessions.filter(
+        (s) => (s.tags || []).includes(topic) && s.status === "solved"
+      ).length;
+      const remaining = Math.max(0, g.target - topicSolved);
+      const todayTopic = todaySessions.filter(
+        (s) => (s.tags || []).includes(topic) && s.status === "solved"
+      ).length;
+      // suggest at least 1 per day until goal is met
+      const suggestToday = remaining > 0 ? Math.max(1, Math.ceil(remaining / 30)) : 0;
+      return { topic, target: g.target, solved: topicSolved, remaining, todayTopic, suggestToday };
+    }).filter((g) => g.remaining > 0).sort((a, b) => b.remaining - a.remaining);
+
+    // Weak spots: topics with avgStruggle < 50, at least 1 solve
+    const weakSpots = (tagStats || [])
+      .filter((t) => t.solved > 0 && t.avgStruggle < 50)
+      .sort((a, b) => a.avgStruggle - b.avgStruggle)
+      .slice(0, 3);
+
+    return { reviews: dueReviews, goalWork, weakSpots, todaySolvedCount };
+  }
+
   return {
     getAllSessions,
     saveSession,
@@ -315,6 +443,19 @@ const LeetTrackStorage = (() => {
     scheduleReview,
     getDueReviews,
     getAllSRCards,
+    // goals
+    getGoals,
+    setGoal,
+    deleteGoal,
+    computeGoalProgress,
+    // lc sync
+    getLCSyncData,
+    saveLCSyncData,
+    // notifications
+    getNotifSettings,
+    saveNotifSettings,
+    // daily plan
+    computeDailyPlan,
   };
 })();
 
