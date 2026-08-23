@@ -64,7 +64,15 @@
       </div>
       <table class="history">
         <thead>
-          <tr><th>Date</th><th>Problem</th><th>Difficulty</th><th>Topics</th><th>Time</th><th>Attempts</th><th>Status</th></tr>
+          <tr>
+            <th data-sort="timestamp" data-label="Date" style="cursor:pointer">Date ↓</th>
+            <th>Problem</th>
+            <th>Difficulty</th>
+            <th>Topics</th>
+            <th data-sort="duration" data-label="Time" style="cursor:pointer">Time</th>
+            <th data-sort="attempts" data-label="Attempts" style="cursor:pointer">Attempts</th>
+            <th>Status</th>
+          </tr>
         </thead>
         <tbody id="historyBody"></tbody>
       </table>

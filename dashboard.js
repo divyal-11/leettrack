@@ -88,6 +88,9 @@ function renderTags(stats) {
     .join("");
 }
 
+let sortCol = "timestamp";
+let sortDir = -1; // -1 = desc, 1 = asc
+
 function renderHistory() {
   const diffFilter = document.getElementById("fDiff").value;
   const statusFilter = document.getElementById("fStatus").value;
@@ -97,9 +100,19 @@ function renderHistory() {
     .filter((s) => !diffFilter || s.difficulty === diffFilter)
     .filter((s) => !statusFilter || s.status === statusFilter)
     .filter((s) => !search || s.title.toLowerCase().includes(search))
-    .sort((a, b) => b.timestamp - a.timestamp);
+    .sort((a, b) => {
+      const av = a[sortCol];
+      const bv = b[sortCol];
+      return (av < bv ? -1 : av > bv ? 1 : 0) * sortDir;
+    });
 
   document.getElementById("emptyState").style.display = ALL_SESSIONS.length ? "none" : "block";
+
+  // update sort indicators on headers
+  document.querySelectorAll("table.history th[data-sort]").forEach((th) => {
+    const arrow = th.dataset.sort === sortCol ? (sortDir === 1 ? " ↑" : " ↓") : "";
+    th.textContent = th.dataset.label + arrow;
+  });
 
   document.getElementById("historyBody").innerHTML = rows
     .map(
@@ -158,6 +171,20 @@ document.getElementById("fDiff").addEventListener("change", renderHistory);
 document.getElementById("fStatus").addEventListener("change", renderHistory);
 document.getElementById("fSearch").addEventListener("input", renderHistory);
 document.getElementById("exportBtn").addEventListener("click", exportCSV);
+
+// sortable column headers
+document.querySelectorAll("table.history th[data-sort]").forEach((th) => {
+  th.addEventListener("click", () => {
+    if (sortCol === th.dataset.sort) {
+      sortDir *= -1;
+    } else {
+      sortCol = th.dataset.sort;
+      sortDir = -1;
+    }
+    renderHistory();
+  });
+});
+
 document.getElementById("clearBtn").addEventListener("click", () => {
   if (confirm("Clear all LeetTrack session history? This can't be undone.")) {
     chrome.runtime.sendMessage({ type: "CLEAR_ALL" }, loadAndRender);
