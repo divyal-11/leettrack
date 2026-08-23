@@ -87,34 +87,103 @@ function renderGoals(goals, sessions) {
   const subEl = document.getElementById("goalsSub");
   const listEl = document.getElementById("goalsList");
 
-  subEl.textContent = `${entries.length} active target${entries.length === 1 ? "" : "s"}`;
+  subEl.textContent = `${entries.length} active goal${entries.length === 1 ? "" : "s"}`;
 
   if (!entries.length) {
-    listEl.innerHTML = '<div class="tag-empty">No active topic goals. Set a target below (e.g. Dynamic Programming → 30).</div>';
+    listEl.innerHTML = '<div class="tag-empty">No active goals. Create a study goal below (e.g. "Dynamic Programming" or "Blind 75").</div>';
     return;
   }
 
   listEl.innerHTML = entries.map(([topic, g]) => {
-    const solved = sessions.filter(
+    const problems = g.problems || [];
+    
+    // Check which problems are solved from sessions
+    const problemItems = problems.map((p) => {
+      const match = sessions.find((s) => s.slug === p.slug && s.status === "solved");
+      return {
+        ...p,
+        solved: !!match,
+        duration: match ? match.duration : null,
+        attempts: match ? match.attempts : null,
+      };
+    });
+
+    const specificSolved = problemItems.filter((p) => p.solved).length;
+    const tagSolved = sessions.filter(
       (s) => (s.tags || []).includes(topic) && s.status === "solved"
     ).length;
-    const pct = Math.min(100, Math.round((solved / g.target) * 100));
+    const solved = problems.length > 0 ? specificSolved : tagSolved;
+    const target = Math.max(g.target || 0, problems.length);
+    const pct = target > 0 ? Math.min(100, Math.round((solved / target) * 100)) : 0;
+
+    const problemsHtml = problemItems.length > 0
+      ? `<div class="goal-problems">
+          ${problemItems.map((p) => `
+            <div class="goal-prob-row">
+              <div class="goal-prob-left">
+                <span class="prob-status-dot ${p.solved ? 'solved' : 'unsolved'}">${p.solved ? '✅' : '⏳'}</span>
+                <a href="https://leetcode.com/problems/${p.slug}/" target="_blank" class="goal-prob-link" title="${p.title}">
+                  ${p.title}
+                </a>
+              </div>
+              <div class="goal-prob-right">
+                ${p.solved ? `<span>${fmtTime(p.duration)} · ${p.attempts || 1} att</span>` : '<span style="color:var(--muted)">to solve</span>'}
+                <button class="prob-del-btn" data-topic="${topic.replace(/"/g, '&quot;')}" data-slug="${p.slug}" title="Remove problem">&times;</button>
+              </div>
+            </div>
+          `).join("")}
+        </div>`
+      : '';
 
     return `
-      <div class="goal-row">
-        <span class="goal-name" title="${topic}">${topic}</span>
-        <div class="goal-track">
-          <div class="goal-fill" style="width: ${pct}%"></div>
+      <div class="goal-card" data-topic="${topic.replace(/"/g, '&quot;')}">
+        <div class="goal-card-header">
+          <span class="goal-name" title="${topic}">${topic}</span>
+          <div class="goal-track">
+            <div class="goal-fill" style="width: ${pct}%"></div>
+          </div>
+          <span class="goal-nums">${solved}/${target} (${pct}%)</span>
+          <button class="goal-del-btn" data-topic="${topic.replace(/"/g, '&quot;')}" title="Delete goal">&times;</button>
         </div>
-        <span class="goal-nums">${solved}/${g.target} (${pct}%)</span>
-        <button class="goal-del-btn" data-topic="${topic.replace(/"/g, '&quot;')}" title="Delete goal">&times;</button>
+        ${problemsHtml}
+        <form class="goal-add-prob-form" data-topic="${topic.replace(/"/g, '&quot;')}">
+          <input type="text" class="goal-add-prob-input" placeholder="Add specific problem (e.g. #198 House Robber, 300, or URL)…" required />
+          <button type="submit" class="goal-add-prob-btn">+ Add Problem</button>
+        </form>
       </div>`;
   }).join("");
 
+  // Delete Goal handler
   listEl.querySelectorAll(".goal-del-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const topic = btn.dataset.topic;
-      chrome.runtime.sendMessage({ type: "DELETE_GOAL", topic }, loadAndRender);
+      if (confirm(`Delete the "${topic}" goal?`)) {
+        chrome.runtime.sendMessage({ type: "DELETE_GOAL", topic }, loadAndRender);
+      }
+    });
+  });
+
+  // Remove Problem from Goal handler
+  listEl.querySelectorAll(".prob-del-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const topic = btn.dataset.topic;
+      const slug = btn.dataset.slug;
+      chrome.runtime.sendMessage({ type: "REMOVE_PROBLEM_FROM_GOAL", topic, slug }, loadAndRender);
+    });
+  });
+
+  // Add Problem to Goal handler
+  listEl.querySelectorAll(".goal-add-prob-form").forEach((form) => {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const topic = form.dataset.topic;
+      const input = form.querySelector(".goal-add-prob-input");
+      const problemInput = (input.value || "").trim();
+      if (!problemInput) return;
+
+      chrome.runtime.sendMessage({ type: "ADD_PROBLEM_TO_GOAL", topic, problemInput }, () => {
+        loadAndRender();
+      });
     });
   });
 }

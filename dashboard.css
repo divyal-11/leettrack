@@ -117,25 +117,35 @@ h2 {
 .goals-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 20px;
 }
-.goal-row {
+.goal-card {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+.goal-card-header {
   display: grid;
-  grid-template-columns: 140px 1fr 90px 40px;
+  grid-template-columns: 160px 1fr 100px 30px;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
 }
 .goal-name {
-  font-weight: 500;
+  font-weight: 700;
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .goal-track {
   height: 8px;
-  background: var(--panel-2);
+  background: #0B0F14;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -156,14 +166,105 @@ h2 {
   border: none;
   color: var(--muted);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
   text-align: center;
 }
 .goal-del-btn:hover { color: var(--rose); }
+
+/* Goal problem items inside card */
+.goal-problems {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding-left: 6px;
+}
+.goal-prob-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+}
+.goal-prob-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.prob-status-dot {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.prob-status-dot.solved { color: var(--teal); }
+.prob-status-dot.unsolved { color: var(--muted); }
+.goal-prob-link {
+  color: var(--text);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.goal-prob-link:hover { color: var(--amber); text-decoration: underline; }
+.goal-prob-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.prob-del-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+.prob-del-btn:hover { color: var(--rose); }
+
+/* Add problem form inside goal card */
+.goal-add-prob-form {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.goal-add-prob-input {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+}
+.goal-add-prob-input:focus { border-color: var(--amber); outline: none; }
+.goal-add-prob-btn {
+  background: rgba(232, 163, 61, 0.15);
+  border: 1px solid rgba(232, 163, 61, 0.3);
+  color: var(--amber);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.goal-add-prob-btn:hover {
+  background: var(--amber);
+  color: #0B0F14;
+}
+
+/* Master Goal Form */
 .goal-form {
   display: flex;
   gap: 8px;
-  padding-top: 12px;
+  padding-top: 14px;
   border-top: 1px solid var(--line);
 }
 .goal-form input {

@@ -90,9 +90,20 @@ function renderPlan() {
       goalList.innerHTML = `<div class="empty-notice">🎯 No active topic goals remaining or set. <a href="dashboard.html" style="color:var(--amber)">Set new goals in Dashboard</a></div>`;
     } else {
       goalList.innerHTML = goalWork.map((g) => {
-        const pct = Math.min(100, Math.round((g.solved / g.target) * 100));
+        const goalObj = goals && goals[g.topic];
+        const specificProblems = goalObj?.problems || [];
+        const unsolvedSpecific = specificProblems.find((p) => {
+          return !sessions.some((s) => s.slug === p.slug && s.status === "solved");
+        });
+
+        const pct = g.target > 0 ? Math.min(100, Math.round((g.solved / g.target) * 100)) : 0;
         const tagSlug = g.topic.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        const leetcodeTagUrl = `https://leetcode.com/tag/${tagSlug}/`;
+        const solveUrl = unsolvedSpecific 
+          ? `https://leetcode.com/problems/${unsolvedSpecific.slug}/`
+          : `https://leetcode.com/tag/${tagSlug}/`;
+        const actionText = unsolvedSpecific
+          ? `Next: ${unsolvedSpecific.title} ➔`
+          : `Browse Tag ➔`;
 
         return `
           <div class="plan-item">
@@ -104,7 +115,7 @@ function renderPlan() {
             </div>
             <div class="item-right">
               <span>${g.solved}/${g.target} done (${pct}%) · ${g.remaining} left</span>
-              <a href="${leetcodeTagUrl}" target="_blank" class="action-link">Browse Problems ➔</a>
+              <a href="${solveUrl}" target="_blank" class="action-link">${actionText}</a>
             </div>
           </div>`;
       }).join("");

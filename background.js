@@ -241,6 +241,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === "ADD_PROBLEM_TO_GOAL") {
+    LeetTrackStorage.addProblemToGoal(msg.topic, msg.problemInput).then((goal) => {
+      sendResponse({ ok: true, goal });
+    });
+    return true;
+  }
+
+  if (msg.type === "REMOVE_PROBLEM_FROM_GOAL") {
+    LeetTrackStorage.removeProblemFromGoal(msg.topic, msg.slug).then((goal) => {
+      sendResponse({ ok: true, goal });
+    });
+    return true;
+  }
+
   if (msg.type === "GET_DAILY_PLAN") {
     Promise.all([
       LeetTrackStorage.getAllSessions(),

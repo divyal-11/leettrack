@@ -305,12 +305,86 @@ const LeetTrackStorage = (() => {
     });
   }
 
-  function setGoal(topic, target) {
+  // Parse problem input (handles URL, "#198 House Robber", "198", "house-robber", etc.)
+  function parseProblemInput(input) {
+    if (!input || typeof input !== "string") return null;
+    let clean = input.trim();
+
+    // Check if URL: https://leetcode.com/problems/house-robber/
+    const urlMatch = clean.match(/\/problems\/([^/]+)/);
+    if (urlMatch) {
+      const slug = urlMatch[1];
+      const title = slug
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+      return { slug, title };
+    }
+
+    // Check if format like "198. House Robber" or "#198 House Robber"
+    const numTitleMatch = clean.match(/^[#]?(\d+)[\.\s]+(.+)$/);
+    if (numTitleMatch) {
+      const num = numTitleMatch[1];
+      const rest = numTitleMatch[2].trim();
+      const slug = rest.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      return { slug, title: `#${num} ${rest}`, id: num };
+    }
+
+    // Check if format like "House Robber"
+    const slug = clean.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return { slug, title: clean };
+  }
+
+  function setGoal(topic, target, problems = []) {
     return new Promise((resolve) => {
       chrome.storage.local.get([GOALS_KEY], (res) => {
         const goals = res[GOALS_KEY] || {};
-        goals[topic] = { target: Number(target) };
-        chrome.storage.local.set({ [GOALS_KEY]: goals }, resolve);
+        const existing = goals[topic] || {};
+        goals[topic] = {
+          target: Number(target) || existing.target || (problems ? problems.length : 10),
+          problems: problems || existing.problems || [],
+        };
+        chrome.storage.local.set({ [GOALS_KEY]: goals }, () => resolve(goals[topic]));
+      });
+    });
+  }
+
+  function addProblemToGoal(topic, problemInput) {
+    const parsed = parseProblemInput(problemInput);
+    if (!parsed || !parsed.slug) return Promise.resolve(null);
+
+    return new Promise((resolve) => {
+      chrome.storage.local.get([GOALS_KEY], (res) => {
+        const goals = res[GOALS_KEY] || {};
+        if (!goals[topic]) {
+          goals[topic] = { target: 10, problems: [] };
+        }
+        goals[topic].problems = goals[topic].problems || [];
+
+        // Check if already in list
+        const exists = goals[topic].problems.some((p) => p.slug === parsed.slug);
+        if (!exists) {
+          goals[topic].problems.push(parsed);
+          // If problems count exceeds target, auto-expand target
+          if (goals[topic].problems.length > goals[topic].target) {
+            goals[topic].target = goals[topic].problems.length;
+          }
+        }
+        chrome.storage.local.set({ [GOALS_KEY]: goals }, () => resolve(goals[topic]));
+      });
+    });
+  }
+
+  function removeProblemFromGoal(topic, problemSlug) {
+    return new Promise((resolve) => {
+      chrome.storage.local.get([GOALS_KEY], (res) => {
+        const goals = res[GOALS_KEY] || {};
+        if (goals[topic] && goals[topic].problems) {
+          goals[topic].problems = goals[topic].problems.filter((p) => p.slug !== problemSlug);
+          chrome.storage.local.set({ [GOALS_KEY]: goals }, () => resolve(goals[topic]));
+        } else {
+          resolve(null);
+        }
       });
     });
   }
@@ -332,10 +406,23 @@ const LeetTrackStorage = (() => {
       const topicSessions = sessions.filter(
         (s) => (s.tags || []).includes(topic)
       );
-      const solved = topicSessions.filter((s) => s.status === "solved").length;
-      const dueReviews = srCards.filter(
-        (c) => c.nextReview <= Date.now() && c.difficulty // approximate — SR cards don't store tags
-      ).length; // real due count comes from getDueReviews, this is a placeholder
+
+      // Problems specific to this goal
+      const problemList = (g.problems || []).map((p) => {
+        const matchingSession = sessions.find((s) => s.slug === p.slug && s.status === "solved");
+        return {
+          ...p,
+          solved: !!matchingSession,
+          duration: matchingSession ? matchingSession.duration : null,
+          attempts: matchingSession ? matchingSession.attempts : null,
+        };
+      });
+
+      // Total solved count: either matching specific problem list or matching topic tags
+      const specificSolvedCount = problemList.filter((p) => p.solved).length;
+      const tagSolvedCount = topicSessions.filter((s) => s.status === "solved").length;
+      const solved = problemList.length > 0 ? specificSolvedCount : tagSolvedCount;
+      const target = Math.max(g.target || 0, problemList.length);
 
       const avgStruggle = (() => {
         const withScore = topicSessions.filter((s) => s.status === "solved");
@@ -345,23 +432,24 @@ const LeetTrackStorage = (() => {
         );
       })();
 
-      const remaining = Math.max(0, g.target - solved);
-      const pct = Math.min(100, Math.round((solved / g.target) * 100));
+      const remaining = Math.max(0, target - solved);
+      const pct = target > 0 ? Math.min(100, Math.round((solved / target) * 100)) : 0;
       const todaySolved = topicSessions.filter(
         (s) => dayKey(s.timestamp) === today && s.status === "solved"
       ).length;
 
       return {
         topic,
-        target: g.target,
+        target,
         solved,
         remaining,
         pct,
         todaySolved,
+        problems: problemList,
         avgStruggle,
         pd: avgStruggle !== null ? personalDifficulty(avgStruggle) : null,
       };
-    }).sort((a, b) => a.pct - b.pct); // most behind first
+    }).sort((a, b) => a.pct - b.pct);
   }
 
   // ─── LeetCode Sync Cache ──────────────────────────────────────────────────
@@ -447,6 +535,9 @@ const LeetTrackStorage = (() => {
     getGoals,
     setGoal,
     deleteGoal,
+    addProblemToGoal,
+    removeProblemFromGoal,
+    parseProblemInput,
     computeGoalProgress,
     // lc sync
     getLCSyncData,
