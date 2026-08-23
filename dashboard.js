@@ -125,13 +125,14 @@ function renderHistory() {
         <td class="time-mono">${fmtTime(s.duration)}</td>
         <td>${s.attempts}</td>
         <td class="status-${s.status}">${s.status === "solved" ? "Solved" : "Unsolved"}</td>
+        <td class="notes-cell">${s.notes ? `<span title="${s.notes.replace(/"/g,'&quot;')}">${s.notes.length > 40 ? s.notes.slice(0,40) + '…' : s.notes}</span>` : "—"}</td>
       </tr>`
     )
     .join("");
 }
 
 function exportCSV() {
-  const header = ["date", "title", "difficulty", "tags", "duration_sec", "attempts", "status"];
+  const header = ["date", "title", "difficulty", "tags", "duration_sec", "attempts", "status", "notes"];
   const lines = [header.join(",")];
   ALL_SESSIONS.forEach((s) => {
     lines.push(
@@ -143,6 +144,7 @@ function exportCSV() {
         s.duration,
         s.attempts,
         s.status,
+        `"${(s.notes || "").replace(/"/g, '""')}"`,
       ].join(",")
     );
   });

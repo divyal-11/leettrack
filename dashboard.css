@@ -248,6 +248,8 @@ table.history td {
   text-decoration: none;
 }
 .prob-link:hover { color: var(--amber); text-decoration: underline; }
+.notes-cell { color: var(--muted); font-size: 11px; max-width: 160px; }
+
 
 @media (max-width: 720px) {
   .stat-strip { grid-template-columns: repeat(3, 1fr); }

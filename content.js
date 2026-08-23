@@ -103,6 +103,7 @@
         <button class="lt-btn" id="lt-reset">Reset</button>
         <button class="lt-btn lt-btn-danger" id="lt-giveup">Give up</button>
       </div>
+      <textarea class="lt-notes" id="lt-notes" placeholder="Notes (optional)…" rows="2"></textarea>
       <div class="lt-status" id="lt-status"></div>
     </div>
   `;
@@ -113,6 +114,7 @@
   const elMeta = box.querySelector("#lt-meta");
   const elStatus = box.querySelector("#lt-status");
   const elPause = box.querySelector("#lt-pause");
+  const elNotes = box.querySelector("#lt-notes");
   const btnMin = box.querySelector("#lt-min");
   const btnReset = box.querySelector("#lt-reset");
   const btnGiveUp = box.querySelector("#lt-giveup");
@@ -149,6 +151,7 @@
       timestamp: Date.now(),
       status,
       attempts: state.attempts,
+      notes: (elNotes.value || "").trim(),
     };
     chrome.runtime.sendMessage({ type: "SAVE_SESSION", session });
     elTime.textContent = fmt(duration);
