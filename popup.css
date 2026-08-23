@@ -1,4 +1,8 @@
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
   width: 240px;
@@ -7,7 +11,9 @@ body {
   font-family: -apple-system, 'Inter', system-ui, sans-serif;
 }
 
-.wrap { padding: 14px; }
+.wrap {
+  padding: 14px;
+}
 
 .head {
   display: flex;
@@ -17,7 +23,9 @@ body {
 }
 
 .dot {
-  width: 8px; height: 8px; border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   background: #E8A33D;
   box-shadow: 0 0 6px #E8A33D;
 }
@@ -73,14 +81,17 @@ body {
   margin-top: 12px;
   padding: 9px 0;
   background: var(--amber);
-  color: #0B0F14;
+  color: #1E2833;
   font-weight: 700;
   font-size: 12px;
   border-radius: 7px;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(232, 163, 61, 0.25);
 }
-.plan-btn:hover { background: #f0b45c; }
+
+.plan-btn:hover {
+  background: #f0b45c;
+}
 
 .dash-btn {
   all: unset;
@@ -97,7 +108,10 @@ body {
   cursor: pointer;
   border: 1px solid var(--line);
 }
-.dash-btn:hover { background: #283747; }
+
+.dash-btn:hover {
+  background: #283747;
+}
 
 .reminder-settings {
   display: flex;
@@ -117,6 +131,7 @@ body {
   cursor: pointer;
   color: #EDEFF2;
 }
+
 .reminder-toggle input {
   accent-color: #E8A33D;
   cursor: pointer;
@@ -131,6 +146,7 @@ body {
   border-radius: 4px;
   padding: 2px 4px;
 }
+
 .reminder-time:focus {
   border-color: #E8A33D;
   outline: none;
