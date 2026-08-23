@@ -1,87 +1,58 @@
-# LeetTrack — LeetCode Timer & Stats
+# LeetTrack — LeetCode Timer, Spaced Repetition & Daily Practice Coach
 
 A Chrome extension that auto-times every LeetCode problem you open, detects
-when you get Accepted (no manual "stop" needed), and gives you a stats
-dashboard: streaks, difficulty breakdown, topic breakdown, and full session
-history.
+Accepted submissions on its own, schedules spaced-repetition reviews using the
+SM-2 algorithm, tracks your topic goals, and builds an actionable daily practice plan.
 
-## What makes it different from a plain timer
+---
 
-- **Starts itself** the moment you open a problem page, and **stops itself**
-  the moment LeetCode returns "Accepted" — it watches LeetCode's own submit
-  polling call (both `fetch` and `XMLHttpRequest`), no manual clicking required.
-- **Counts attempts** — every non-accepted verdict (Wrong Answer, TLE, etc.)
-  bumps an attempt counter for that session.
-- **Survives refresh** — the timer state is persisted, so reloading the page
-  doesn't reset your clock.
-- **No drift on navigation** — if you switch tabs mid-problem the timer
-  snapshots itself so elapsed time stays accurate when you return.
-- **Notes field** — jot down your approach or a quick insight before you submit;
-  it gets saved with the session and shows in history.
-- **Grind trail** — a GitHub-style heatmap of your last 26 weeks of activity,
-  plus difficulty and topic breakdowns, all computed locally.
-- **Deduplication** — solving the same problem twice in a day updates the
-  existing session instead of creating a duplicate row.
-- **CSV export** (includes notes) and a **Give up** button to log an honest
-  unsolved attempt instead of losing the data.
-- Everything is stored locally in `chrome.storage.local` — nothing leaves
-  your machine.
+## What makes LeetTrack different
 
-## Install (unpacked, for now — not on the Chrome Web Store)
+- **Zero-click auto-timer** — starts when you open any `leetcode.com/problems/*` page, stops the second LeetCode returns "Accepted" (intercepts both `fetch` and `XMLHttpRequest`).
+- **Personal Struggle Score (0–100)** — evaluates your struggle based on actual duration vs expected time (15m Easy / 30m Medium / 45m Hard) plus attempt penalties. Evaluates whether a problem is Easy, Medium, Hard, or Very Hard *for you*.
+- **🔁 SM-2 Spaced Repetition Engine** — automatically schedules your next review date for every problem. Easy solves get pushed further out (1d → 6d → 15d…); high-struggle problems come back sooner.
+- **🎯 Topic Goals Tracker** — set target counts per topic (e.g. Dynamic Programming → 30, Graphs → 20) and track your live progress bars and remaining counts.
+- **📋 Today's Practice Plan** (`plan.html`) — open each morning for a curated agenda:
+  1. Spaced repetition reviews due today with urgency indicators
+  2. Recommended topic goals to tackle
+  3. High-struggle weak spots to review
+- **🔔 Daily Reminder Notifications** — customizable daily browser alarm (`chrome.alarms` + `chrome.notifications`) alerting you to pending reviews and goal milestones.
+- **🔄 LeetCode Profile Sync** — fetches your official solved totals (Easy/Medium/Hard) directly via LeetCode's session GraphQL API and displays them alongside your local stats.
+- **Survives refresh & navigation** — persistent state in `chrome.storage.local` ensures no lost time or clock drift across tabs.
+- **Notes field** — attach personal insights or pattern names to any session.
+- **100% private** — everything is stored locally on your machine.
 
-1. Unzip this folder somewhere permanent (don't delete it after installing —
-   Chrome loads the extension directly from these files).
-2. Open `chrome://extensions` in Chrome.
-3. Turn on **Developer mode** (top-right toggle).
-4. Click **Load unpacked** and select the `leettrack` folder.
-5. Pin the extension (puzzle-piece icon → pin) for quick access to the popup.
+---
 
-## Use
+## Install (Load Unpacked)
 
-1. Open any `leetcode.com/problems/<slug>/` page — a small timer widget
-   appears bottom-right and starts counting automatically.
-2. Solve it. When you submit and get Accepted, the widget detects it,
-   stops the clock, and saves the session — no action needed.
-3. Optionally type a note in the widget before submitting (approach, edge
-   case, hint used, etc.).
-4. If you want to bail on a problem, hit **Give up** to log it as unsolved
-   with the time you spent.
-5. Click the extension icon for a quick summary, or **Open dashboard** for
-   the full stats page (heatmap, breakdowns, sortable history, CSV export).
+1. Clone or download this repository.
+2. Open `chrome://extensions` in Google Chrome.
+3. Enable **Developer mode** (top-right toggle).
+4. Click **Load unpacked** and select the `leettrack` directory.
+5. Pin the extension for quick popup access.
 
-## Dashboard
+---
 
-- **Stat strip** — current streak, best streak, total solved, success rate,
-  average solve time, total time practiced.
-- **Grind trail** — 26-week heatmap. Hover a cell to see the date and count.
-- **By difficulty** — Easy / Medium / Hard progress bars with solved/attempted counts.
-- **Top topics** — scraped from LeetCode's Topics section (best-effort).
-- **Session history** — filterable by difficulty, status, or search term.
-  Click the **Date**, **Time**, or **Attempts** column headers to sort.
-  Problem titles are clickable links back to LeetCode. Notes are shown
-  truncated (hover for full text).
+## How to use
 
-## Known limitations (worth knowing, not hiding)
+1. **Solve problems on LeetCode**: Open any problem page — the timer widget appears bottom-right. When you submit and get Accepted, the session and SM-2 review card save automatically.
+2. **Open Today's Plan**: Click the extension popup and click **📋 Open Today's Plan** to see what's due for revision and what topic goal needs practice today.
+3. **Set Topic Goals in Dashboard**: Open **📊 Full Dashboard** and use the **🎯 Topic Goals** panel to define your target solve counts.
+4. **Sync with LeetCode**: Click **Sync with LeetCode** on the dashboard to pull your total account solve count.
+5. **Adjust Notifications**: In the popup, toggle the daily reminder and select your preferred notification time (e.g. 09:00 AM).
 
-- **Topic tags** are scraped from the page's "Topics" section. LeetCode
-  occasionally changes its DOM structure, so tag scraping is best-effort —
-  if a redesign breaks it, sessions still save fine, just without tags.
-- **Difficulty detection** uses the same approach and has the same caveat.
-- The submission-verdict detection relies on LeetCode's current internal
-  API path (`/submissions/detail/<id>/check/`). If LeetCode changes this,
-  auto-detection would need a selector update — the manual **Give up**
-  button still works regardless.
-- This only works on `leetcode.com/problems/*` pages, not the LeetCode
-  mobile app or other judges.
+---
 
-## File layout
+## Project Structure
 
 ```
-manifest.json     — MV3 config
-content.js/css    — the floating timer widget injected into problem pages
-inject.js         — page-context script that watches LeetCode's fetch + XHR calls
-background.js     — service worker: persists sessions, answers stat queries
-storage.js        — shared storage + stats-computation helpers
-popup.html/js/css — toolbar popup (quick stats)
-dashboard.html/js/css — full stats page (heatmap, breakdowns, history, export)
+manifest.json       — Manifest V3 configuration (alarms, notifications, storage, tabs)
+content.js / .css   — Injected floating timer & notes widget
+inject.js           — Intercepts LeetCode's submit polling calls in page context
+background.js       — Service worker: session persistence, SM-2 scheduling, GraphQL sync & daily alarm
+storage.js          — Storage helpers, struggle score formulas, SM-2 algorithm & daily plan computation
+popup.html / .js    — Toolbar popup with stats, quick review notice & notification settings
+plan.html / .js     — Dedicated Today's Plan page (reviews due, goal targets, weak spots)
+dashboard.html / .js— Analytics dashboard (26-week heatmap, topic goals, review queue, history table, CSV export)
 ```
