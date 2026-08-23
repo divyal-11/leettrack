@@ -306,12 +306,12 @@ const LeetTrackStorage = (() => {
   }
 
   // Parse problem input (handles URL, "#198 House Robber", "198", "house-robber", etc.)
-  function parseProblemInput(input) {
+  function parseProblemInput(input, existingSessions = []) {
     if (!input || typeof input !== "string") return null;
     let clean = input.trim();
 
-    // Check if URL: https://leetcode.com/problems/house-robber/
-    const urlMatch = clean.match(/\/problems\/([^/]+)/);
+    // 1. Check if URL: https://leetcode.com/problems/house-robber/
+    const urlMatch = clean.match(/\/problems\/([^/?#]+)/);
     if (urlMatch) {
       const slug = urlMatch[1];
       const title = slug
@@ -321,8 +321,22 @@ const LeetTrackStorage = (() => {
       return { slug, title };
     }
 
-    // Check if format like "198. House Robber" or "#198 House Robber"
-    const numTitleMatch = clean.match(/^[#]?(\d+)[\.\s]+(.+)$/);
+    // 2. Check if just a problem number (e.g. "198" or "#198")
+    const justNumMatch = clean.match(/^[#]?(\d+)$/);
+    if (justNumMatch) {
+      const num = justNumMatch[1];
+      // Try to find matching problem in history
+      const match = (existingSessions || []).find(
+        (s) => s.title.startsWith(num + ".") || s.title.startsWith("#" + num) || s.slug.includes(num)
+      );
+      if (match) {
+        return { slug: match.slug, title: match.title, id: num };
+      }
+      return { slug: num, title: `Problem #${num}`, id: num };
+    }
+
+    // 3. Check if format like "198. House Robber" or "#198 House Robber" or "198 House Robber"
+    const numTitleMatch = clean.match(/^[#]?(\d+)[\.\s:\-]+(.+)$/);
     if (numTitleMatch) {
       const num = numTitleMatch[1];
       const rest = numTitleMatch[2].trim();
@@ -330,9 +344,12 @@ const LeetTrackStorage = (() => {
       return { slug, title: `#${num} ${rest}`, id: num };
     }
 
-    // Check if format like "House Robber"
+    // 4. Check if format like "House Robber" or "house-robber"
     const slug = clean.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    return { slug, title: clean };
+    const formattedTitle = clean.includes("-")
+      ? clean.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+      : clean;
+    return { slug, title: formattedTitle };
   }
 
   function setGoal(topic, target, problems = []) {
