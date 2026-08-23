@@ -35,17 +35,22 @@ function renderStatStrip(stats) {
 // ── LeetCode Sync Strip ───────────────────────────────────────────────────────
 function renderLCSync(data) {
   const textEl = document.getElementById("syncText");
-  const btn = document.getElementById("syncBtn");
+  const usernameInput = document.getElementById("syncUsername");
 
   if (!data) {
-    textEl.innerHTML = `LeetCode Sync: <span style="color:var(--muted)">Not synced yet (make sure you're logged into leetcode.com)</span>`;
+    textEl.innerHTML = `LeetCode Profile: <span style="color:var(--muted)">Not synced yet (enter your LeetCode username or log into leetcode.com)</span>`;
     return;
+  }
+
+  if (data.username && !usernameInput.value) {
+    usernameInput.value = data.username;
   }
 
   const minsAgo = Math.max(0, Math.round((Date.now() - data.fetchedAt) / 60000));
   const timeStr = minsAgo === 0 ? "just now" : `${minsAgo}m ago`;
+  const userTag = data.username ? ` (@${data.username})` : "";
 
-  textEl.innerHTML = `LeetCode Profile: <span class="sync-badge">${data.totalSolved || 0} solved</span> (${data.easySolved || 0}E / ${data.mediumSolved || 0}M / ${data.hardSolved || 0}H) · synced ${timeStr}`;
+  textEl.innerHTML = `LeetCode Profile${userTag}: <span class="sync-badge">${data.totalSolved || 0} solved</span> (${data.easySolved || 0}E / ${data.mediumSolved || 0}M / ${data.hardSolved || 0}H) · synced ${timeStr}`;
 }
 
 // ── Heatmap ───────────────────────────────────────────────────────────────────
@@ -336,16 +341,19 @@ document.getElementById("goalForm").addEventListener("submit", (e) => {
 // Sync LeetCode button
 document.getElementById("syncBtn").addEventListener("click", () => {
   const btn = document.getElementById("syncBtn");
+  const usernameInput = document.getElementById("syncUsername");
+  const username = usernameInput ? usernameInput.value.trim() : "";
+
   btn.textContent = "Syncing…";
   btn.disabled = true;
 
-  chrome.runtime.sendMessage({ type: "SYNC_LEETCODE" }, (res) => {
-    btn.textContent = "Sync with LeetCode";
+  chrome.runtime.sendMessage({ type: "SYNC_LEETCODE", username }, (res) => {
+    btn.textContent = "Sync Now";
     btn.disabled = false;
     if (res?.data) {
       renderLCSync(res.data);
     } else {
-      alert("Could not fetch LeetCode data. Please make sure you are logged into https://leetcode.com in this browser.");
+      alert("Could not fetch LeetCode data. Please enter your LeetCode username or ensure you are logged into https://leetcode.com.");
     }
   });
 });

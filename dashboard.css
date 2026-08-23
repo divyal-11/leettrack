@@ -93,10 +93,24 @@ h2 {
   align-items: center;
   gap: 10px;
 }
-.sync-badge {
+.sync-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sync-input {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
-  color: var(--teal);
-  font-weight: 600;
+  width: 200px;
+}
+.sync-input:focus {
+  border-color: var(--amber);
+  outline: none;
 }
 
 /* Goals list & form */

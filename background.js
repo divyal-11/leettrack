@@ -71,39 +71,115 @@ chrome.notifications.onClicked.addListener((id) => {
 });
 
 // ─── LeetCode GraphQL Sync ────────────────────────────────────────────────────
-async function fetchLeetCodeStats() {
-  // Uses LeetCode's internal GraphQL API. Works only when the user is logged in.
-  const query = `
-    query userSessionProgress {
-      allQuestionsCount { difficulty count }
-      solvedQuestionsCount { difficulty count }
-    }
-  `;
+async function fetchLeetCodeStats(manualUsername) {
   try {
-    const resp = await fetch("https://leetcode.com/graphql", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-      credentials: "include", // sends the LeetCode session cookie
-    });
-    if (!resp.ok) return null;
-    const json = await resp.json();
-    const solved = json?.data?.solvedQuestionsCount;
-    if (!solved) return null;
+    let username = manualUsername ? manualUsername.trim() : "";
 
-    const get = (diff) => (solved.find((x) => x.difficulty === diff)?.count) || 0;
-    const data = {
-      easySolved: get("Easy"),
-      mediumSolved: get("Medium"),
-      hardSolved: get("Hard"),
-      totalSolved: get("All"),
-    };
-    await LeetTrackStorage.saveLCSyncData(data);
-    return data;
+    // 1. If username not provided, try to detect active logged-in user session
+    if (!username) {
+      try {
+        const statusResp = await fetch("https://leetcode.com/graphql", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Referer: "https://leetcode.com",
+          },
+          body: JSON.stringify({
+            query: `query globalData { userStatus { isSignedIn username } }`,
+          }),
+        });
+        if (statusResp.ok) {
+          const statusJson = await statusResp.json();
+          if (statusJson?.data?.userStatus?.isSignedIn && statusJson.data.userStatus.username) {
+            username = statusJson.data.userStatus.username;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 2. Query LeetCode GraphQL by username
+    if (username) {
+      const query = `
+        query userProblemsSolved($username: String!) {
+          matchedUser(username: $username) {
+            username
+            submitStatsGlobal {
+              acSubmissionNum {
+                difficulty
+                count
+              }
+            }
+          }
+        }
+      `;
+      const resp = await fetch("https://leetcode.com/graphql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Referer: "https://leetcode.com",
+        },
+        body: JSON.stringify({
+          query,
+          variables: { username },
+        }),
+      });
+
+      if (resp.ok) {
+        const json = await resp.json();
+        const acList = json?.data?.matchedUser?.submitStatsGlobal?.acSubmissionNum;
+        if (acList) {
+          const get = (d) => acList.find((x) => x.difficulty === d)?.count || 0;
+          const data = {
+            username,
+            easySolved: get("Easy"),
+            mediumSolved: get("Medium"),
+            hardSolved: get("Hard"),
+            totalSolved: get("All"),
+          };
+          await LeetTrackStorage.saveLCSyncData(data);
+          return data;
+        }
+      }
+    }
+
+    // 3. Fallback to session query
+    const sessionQuery = `
+      query userSessionProgress {
+        allQuestionsCount { difficulty count }
+        solvedQuestionsCount { difficulty count }
+      }
+    `;
+    const sessionResp = await fetch("https://leetcode.com/graphql", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Referer: "https://leetcode.com",
+      },
+      body: JSON.stringify({ query: sessionQuery }),
+    });
+    if (sessionResp.ok) {
+      const sessionJson = await sessionResp.json();
+      const solved = sessionJson?.data?.solvedQuestionsCount;
+      if (solved) {
+        const get = (d) => solved.find((x) => x.difficulty === d)?.count || 0;
+        const data = {
+          username: username || "LeetCode User",
+          easySolved: get("Easy"),
+          mediumSolved: get("Medium"),
+          hardSolved: get("Hard"),
+          totalSolved: get("All"),
+        };
+        await LeetTrackStorage.saveLCSyncData(data);
+        return data;
+      }
+    }
+
+    return null;
   } catch (e) {
     return null;
   }
 }
+
 
 // ─── Message Handlers ─────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -179,7 +255,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === "SYNC_LEETCODE") {
-    fetchLeetCodeStats().then((data) => sendResponse({ data }));
+    fetchLeetCodeStats(msg.username).then((data) => sendResponse({ data }));
     return true;
   }
 
