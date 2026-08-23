@@ -2,10 +2,13 @@ importScripts("storage.js");
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "SAVE_SESSION") {
-    LeetTrackStorage.saveSession(msg.session).then(() => {
-      LeetTrackStorage.clearActiveTimer(msg.session.slug).then(() => {
-        sendResponse({ ok: true });
+    LeetTrackStorage.saveSession(msg.session).then((session) => {
+      // auto-schedule spaced repetition review for every session saved
+      return LeetTrackStorage.scheduleReview(session).then(() => {
+        return LeetTrackStorage.clearActiveTimer(session.slug);
       });
+    }).then(() => {
+      sendResponse({ ok: true });
     });
     return true; // async
   }
@@ -29,6 +32,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     LeetTrackStorage.getAllSessions().then((sessions) => {
       sendResponse({ sessions, stats: LeetTrackStorage.computeStats(sessions) });
     });
+    return true;
+  }
+
+  if (msg.type === "GET_REVIEW_QUEUE") {
+    LeetTrackStorage.getDueReviews().then((due) => sendResponse({ due }));
+    return true;
+  }
+
+  if (msg.type === "GET_ALL_SR_CARDS") {
+    LeetTrackStorage.getAllSRCards().then((cards) => sendResponse({ cards }));
     return true;
   }
 
