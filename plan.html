@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>LeetTrack — Today's Practice Plan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="plan.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot"></span>
+      <span>LeetTrack</span>
+      <span class="plan-tag">Today's Plan</span>
+    </div>
+    <div class="actions">
+      <a href="dashboard.html" class="ghost-btn" style="text-decoration:none">📊 Full Dashboard</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- Daily Greeting & Summary -->
+    <div class="welcome-box">
+      <div class="welcome-title" id="welcomeDate">Today's Plan</div>
+      <div class="welcome-sub" id="welcomeStatus">Loading your daily roadmap…</div>
+      <div class="today-stats" id="todayStats"></div>
+    </div>
+
+    <!-- 1. Reviews Due -->
+    <section class="panel" id="reviewsSection">
+      <div class="panel-head">
+        <div class="head-title">
+          <h2>📅 Spaced Repetition Reviews</h2>
+          <span class="badge-count" id="reviewBadge">0</span>
+        </div>
+        <span class="panel-sub">Scheduled by SM-2 algorithm based on past struggle</span>
+      </div>
+      <div id="planReviewList" class="plan-list"></div>
+    </section>
+
+    <!-- 2. Goal Progress & Recommendations -->
+    <section class="panel" id="goalsSection">
+      <div class="panel-head">
+        <div class="head-title">
+          <h2>🎯 Topic Goals to Work On</h2>
+          <span class="badge-count" id="goalBadge">0</span>
+        </div>
+        <span class="panel-sub">Recommended problems to stay on track for your targets</span>
+      </div>
+      <div id="planGoalList" class="plan-list"></div>
+    </section>
+
+    <!-- 3. Weak Spots to Review -->
+    <section class="panel" id="weakSection">
+      <div class="panel-head">
+        <div class="head-title">
+          <h2>⚠️ High-Struggle Weak Spots</h2>
+        </div>
+        <span class="panel-sub">Topics where your personal struggle score is lowest</span>
+      </div>
+      <div id="planWeakList" class="plan-list"></div>
+    </section>
+  </main>
+
+  <script src="storage.js"></script>
+  <script src="plan.js"></script>
+</body>
+</html>
