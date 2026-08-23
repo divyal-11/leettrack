@@ -1,9 +1,27 @@
 (function () {
-  // ---------- inject page-context script so we can see LeetCode's fetch calls ----------
-  const s = document.createElement("script");
-  s.src = chrome.runtime.getURL("inject.js");
-  s.onload = () => s.remove();
-  (document.head || document.documentElement).appendChild(s);
+  // Safe message sender to prevent "Extension context invalidated" errors
+  function isExtensionValid() {
+    try {
+      return !!(typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function sendMsg(msg, cb) {
+    if (!isExtensionValid()) return;
+    try {
+      chrome.runtime.sendMessage(msg, (res) => {
+        if (chrome.runtime.lastError) {
+          // Extension reloaded or context inactive — fail silently
+          return;
+        }
+        if (cb) cb(res);
+      });
+    } catch (e) {
+      // Catch context invalidation gracefully
+    }
+  }
 
   // ---------- problem detection ----------
   function getSlug() {
@@ -66,7 +84,7 @@
   let tickHandle = null;
 
   function persist() {
-    chrome.runtime.sendMessage({ type: "SET_ACTIVE_TIMER", slug, state });
+    sendMsg({ type: "SET_ACTIVE_TIMER", slug, state });
   }
 
   function elapsedSeconds() {
@@ -154,7 +172,7 @@
       attempts: state.attempts,
       notes: (elNotes.value || "").trim(),
     };
-    chrome.runtime.sendMessage({ type: "SAVE_SESSION", session });
+    sendMsg({ type: "SAVE_SESSION", session });
     elTime.textContent = fmt(duration);
 
     if (status === "solved") {
@@ -176,8 +194,8 @@
     btnGiveUp.disabled = true;
   }
 
-  // init: resume un-solved active timer or start fresh
-  chrome.runtime.sendMessage({ type: "GET_ACTIVE_TIMER", slug }, (res) => {
+  // init: resume active running timer or start fresh
+  sendMsg({ type: "GET_ACTIVE_TIMER", slug }, (res) => {
     if (res && res.state && !res.state.solved && res.state.startTimestamp) {
       state = res.state;
     } else {
