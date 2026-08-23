@@ -155,8 +155,23 @@
     };
     chrome.runtime.sendMessage({ type: "SAVE_SESSION", session });
     elTime.textContent = fmt(duration);
-    elStatus.textContent = status === "solved" ? "Saved — Accepted ✓" : "Saved — marked unsolved";
-    elStatus.className = "lt-status lt-status-" + status;
+
+    if (status === "solved") {
+      // compute struggle score inline (mirrors storage.js logic — no import needed)
+      const expected = { Easy: 900, Medium: 1800, Hard: 2700 };
+      const exp = expected[session.difficulty] || 1800;
+      const score = Math.max(
+        0,
+        Math.round(100 - Math.max(0, (duration / exp - 1) * 35) - (session.attempts || 0) * 12)
+      );
+      const pd = score >= 80 ? "Easy ✓" : score >= 50 ? "Medium" : score >= 20 ? "Hard" : "Very Hard";
+      elStatus.textContent = `Accepted ✓  ·  Personal: ${pd} (${score})`;
+      elStatus.className = "lt-status lt-status-solved";
+    } else {
+      elStatus.textContent = "Saved — marked unsolved";
+      elStatus.className = "lt-status lt-status-unsolved";
+    }
+
     elPause.disabled = true;
     btnGiveUp.disabled = true;
   }
