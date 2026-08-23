@@ -226,5 +226,16 @@
     }
   });
 
+  // snapshot accumulated time when navigating away so the timer doesn't
+  // drift if the page stays in bfcache or is later restored
+  window.addEventListener("pagehide", () => {
+    if (state.solved || state.paused) return;
+    // fake a pause so the stored startTimestamp + pausedAccum is correct
+    // on the next load — we'll resume automatically
+    state.pausedAccum += Date.now() - state.startTimestamp;
+    state.startTimestamp = Date.now();
+    persist();
+  });
+
   render();
 })();
