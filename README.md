@@ -9,15 +9,21 @@ history.
 
 - **Starts itself** the moment you open a problem page, and **stops itself**
   the moment LeetCode returns "Accepted" — it watches LeetCode's own submit
-  polling call, no manual clicking required.
+  polling call (both `fetch` and `XMLHttpRequest`), no manual clicking required.
 - **Counts attempts** — every non-accepted verdict (Wrong Answer, TLE, etc.)
   bumps an attempt counter for that session.
 - **Survives refresh** — the timer state is persisted, so reloading the page
   doesn't reset your clock.
-- **Grind trail** — a GitHub-style heatmap of your solve activity, plus
-  difficulty and topic breakdowns, all computed locally.
-- **CSV export** and a "Give up" button to log an honest unsolved attempt
-  instead of losing the data.
+- **No drift on navigation** — if you switch tabs mid-problem the timer
+  snapshots itself so elapsed time stays accurate when you return.
+- **Notes field** — jot down your approach or a quick insight before you submit;
+  it gets saved with the session and shows in history.
+- **Grind trail** — a GitHub-style heatmap of your last 26 weeks of activity,
+  plus difficulty and topic breakdowns, all computed locally.
+- **Deduplication** — solving the same problem twice in a day updates the
+  existing session instead of creating a duplicate row.
+- **CSV export** (includes notes) and a **Give up** button to log an honest
+  unsolved attempt instead of losing the data.
 - Everything is stored locally in `chrome.storage.local` — nothing leaves
   your machine.
 
@@ -36,10 +42,24 @@ history.
    appears bottom-right and starts counting automatically.
 2. Solve it. When you submit and get Accepted, the widget detects it,
    stops the clock, and saves the session — no action needed.
-3. If you want to bail on a problem, hit **Give up** to log it as unsolved
+3. Optionally type a note in the widget before submitting (approach, edge
+   case, hint used, etc.).
+4. If you want to bail on a problem, hit **Give up** to log it as unsolved
    with the time you spent.
-4. Click the extension icon for a quick summary, or **Open dashboard** for
-   the full stats page (heatmap, breakdowns, filterable history, CSV export).
+5. Click the extension icon for a quick summary, or **Open dashboard** for
+   the full stats page (heatmap, breakdowns, sortable history, CSV export).
+
+## Dashboard
+
+- **Stat strip** — current streak, best streak, total solved, success rate,
+  average solve time, total time practiced.
+- **Grind trail** — 26-week heatmap. Hover a cell to see the date and count.
+- **By difficulty** — Easy / Medium / Hard progress bars with solved/attempted counts.
+- **Top topics** — scraped from LeetCode's Topics section (best-effort).
+- **Session history** — filterable by difficulty, status, or search term.
+  Click the **Date**, **Time**, or **Attempts** column headers to sort.
+  Problem titles are clickable links back to LeetCode. Notes are shown
+  truncated (hover for full text).
 
 ## Known limitations (worth knowing, not hiding)
 
@@ -59,7 +79,7 @@ history.
 ```
 manifest.json     — MV3 config
 content.js/css    — the floating timer widget injected into problem pages
-inject.js         — page-context script that watches LeetCode's own fetch calls
+inject.js         — page-context script that watches LeetCode's fetch + XHR calls
 background.js     — service worker: persists sessions, answers stat queries
 storage.js        — shared storage + stats-computation helpers
 popup.html/js/css — toolbar popup (quick stats)
