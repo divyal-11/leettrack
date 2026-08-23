@@ -6,29 +6,33 @@
   if (window._leettrack_injected) return;
   window._leettrack_injected = true;
 
-  // Patterns for endpoints LeetCode uses for submitting and polling verdict
-  const URL_KEYWORDS = ["submission", "graphql", "submit", "check"];
-
-  function isRelevantUrl(url) {
+  function isSubmissionEndpoint(url) {
     if (!url || typeof url !== "string") return false;
     const lower = url.toLowerCase();
-    return URL_KEYWORDS.some((kw) => lower.includes(kw));
+    return (
+      lower.includes("/submissions/detail/") ||
+      lower.includes("/submissions/check/") ||
+      lower.includes("/check/") ||
+      lower.includes("/submit/") ||
+      lower.includes("/graphql")
+    );
   }
 
   function extractVerdict(data) {
     if (!data || typeof data !== "object") return null;
 
-    // 1. Direct properties (REST submission check)
+    // 1. Direct REST submission check response
     if (data.status_msg || data.statusDisplay) {
       const msg = data.status_msg || data.statusDisplay;
-      if (msg === "Pending" || msg === "Judging" || msg === "Compiling") return null;
+      if (["pending", "judging", "compiling", "started"].includes(msg.toLowerCase())) return null;
+      if (data.state && data.state !== "SUCCESS") return null;
       return {
         statusMsg: msg,
         accepted: msg.toLowerCase() === "accepted",
       };
     }
 
-    // 2. GraphQL nested response data
+    // 2. GraphQL response for submission status / check
     if (data.data) {
       const sub =
         data.data.submissionDetails ||
@@ -38,7 +42,7 @@
 
       if (sub && (sub.statusDisplay || sub.status_msg)) {
         const msg = sub.statusDisplay || sub.status_msg;
-        if (msg === "Pending" || msg === "Judging" || msg === "Compiling") return null;
+        if (["pending", "judging", "compiling", "started"].includes(msg.toLowerCase())) return null;
         return {
           statusMsg: msg,
           accepted: msg.toLowerCase() === "accepted",
@@ -46,18 +50,10 @@
       }
     }
 
-    // 3. Status code based checks (LeetCode status_code 10 == Accepted)
-    if (data.state === "SUCCESS" && (data.status_code === 10 || data.status_msg === "Accepted")) {
-      return {
-        statusMsg: data.status_msg || "Accepted",
-        accepted: true,
-      };
-    }
-
     return null;
   }
 
-  function emitVerdict(data) {
+  function handleData(data) {
     try {
       const verdict = extractVerdict(data);
       if (verdict && verdict.statusMsg) {
@@ -70,9 +66,7 @@
           "*"
         );
       }
-    } catch (err) {
-      // ignore
-    }
+    } catch (err) {}
   }
 
   // ── 1. Intercept fetch ──────────────────────────────────────────────────────
@@ -81,11 +75,11 @@
     const response = await originalFetch.apply(this, args);
     try {
       const url = typeof args[0] === "string" ? args[0] : args[0]?.url || "";
-      if (isRelevantUrl(url)) {
+      if (isSubmissionEndpoint(url)) {
         response
           .clone()
           .json()
-          .then(emitVerdict)
+          .then(handleData)
           .catch(() => {});
       }
     } catch (e) {}
@@ -102,12 +96,11 @@
   };
 
   XMLHttpRequest.prototype.send = function (...args) {
-    if (isRelevantUrl(this._ltUrl)) {
+    if (isSubmissionEndpoint(this._ltUrl)) {
       this.addEventListener("load", function () {
         try {
           if (this.responseText) {
-            const data = JSON.parse(this.responseText);
-            emitVerdict(data);
+            handleData(JSON.parse(this.responseText));
           }
         } catch (e) {}
       });

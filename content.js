@@ -73,7 +73,7 @@
     if (!state.startTimestamp) return 0;
     const now = Date.now();
     const pausedNow = state.paused && state.pauseStartedAt ? now - state.pauseStartedAt : 0;
-    return Math.floor((now - state.startTimestamp - state.pausedAccum - pausedNow) / 1000);
+    return Math.max(0, Math.floor((now - state.startTimestamp - state.pausedAccum - pausedNow) / 1000));
   }
 
   function fmt(sec) {
@@ -138,6 +138,7 @@
   }
 
   function finalizeAndSave(status) {
+    if (state.solved) return;
     stopTicking();
     const duration = elapsedSeconds();
     state.solved = status === "solved";
@@ -157,7 +158,6 @@
     elTime.textContent = fmt(duration);
 
     if (status === "solved") {
-      // compute struggle score inline (mirrors storage.js logic — no import needed)
       const expected = { Easy: 900, Medium: 1800, Hard: 2700 };
       const exp = expected[session.difficulty] || 1800;
       const score = Math.max(
@@ -165,7 +165,7 @@
         Math.round(100 - Math.max(0, (duration / exp - 1) * 35) - (session.attempts || 0) * 12)
       );
       const pd = score >= 80 ? "Easy ✓" : score >= 50 ? "Medium" : score >= 20 ? "Hard" : "Very Hard";
-      elStatus.textContent = `Accepted ✓  ·  Personal: ${pd} (${score})`;
+      elStatus.textContent = `Accepted ✓ · Personal: ${pd} (${score})`;
       elStatus.className = "lt-status lt-status-solved";
     } else {
       elStatus.textContent = "Saved — marked unsolved";
@@ -176,19 +176,28 @@
     btnGiveUp.disabled = true;
   }
 
-  // init: resume existing timer or start a fresh one
+  // init: resume un-solved active timer or start fresh
   chrome.runtime.sendMessage({ type: "GET_ACTIVE_TIMER", slug }, (res) => {
-    if (res && res.state && !res.state.solved) {
+    if (res && res.state && !res.state.solved && res.state.startTimestamp) {
       state = res.state;
     } else {
-      state.startTimestamp = Date.now();
+      state = {
+        startTimestamp: Date.now(),
+        pausedAccum: 0,
+        paused: false,
+        pauseStartedAt: null,
+        attempts: 0,
+        solved: false,
+        finalDuration: null,
+      };
       persist();
     }
     render();
-    if (!state.paused) startTicking();
+    if (!state.paused && !state.solved) startTicking();
   });
 
   elPause.addEventListener("click", () => {
+    if (state.solved) return;
     if (state.paused) {
       state.pausedAccum += Date.now() - state.pauseStartedAt;
       state.paused = false;
@@ -229,12 +238,37 @@
     btnMin.textContent = box.classList.contains("lt-collapsed") ? "+" : "\u2212";
   });
 
+  // Track clicks on LeetCode's submit button
+  let submissionInFlight = false;
+  let lastSubmitClickTime = 0;
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      const el = e.target.closest("button, [role='button'], div");
+      if (el) {
+        const txt = (el.textContent || "").trim().toLowerCase();
+        if (
+          txt === "submit" ||
+          txt.startsWith("submit") ||
+          el.getAttribute("data-e2e-locator") === "console-submit-button"
+        ) {
+          submissionInFlight = true;
+          lastSubmitClickTime = Date.now();
+        }
+      }
+    },
+    true
+  );
+
   // listen for verdicts coming from inject.js
   window.addEventListener("message", (event) => {
     if (event.source !== window) return;
     const data = event.data;
     if (!data || data.source !== "leettrack" || data.type !== "SUBMISSION_RESULT") return;
     if (state.solved) return;
+
+    submissionInFlight = false;
     if (data.payload.accepted) {
       finalizeAndSave("solved");
     } else {
@@ -250,58 +284,55 @@
 
   function scanDOMForSubmissionResult() {
     if (state.solved) return;
+    // Only search DOM if submit button was clicked in the last 45s or submission was in flight
+    if (!submissionInFlight && Date.now() - lastSubmitClickTime > 45000) return;
 
-    // Check for submission result elements
-    const candidates = document.querySelectorAll(
-      "[data-e2e-locator='submission-result'], [class*='result'], [class*='status'], span, div, h3, h4, p"
+    const resultElements = document.querySelectorAll(
+      "[data-e2e-locator='submission-result'], div[class*='text-green'], span[class*='text-green'], div[class*='text-sd-easy']"
     );
 
-    for (const el of candidates) {
-      if (el.children.length === 0) {
-        const text = el.textContent.trim();
+    for (const el of resultElements) {
+      const text = el.textContent.trim();
 
-        // 1. Accepted detection
-        if (text === "Accepted") {
-          const parent = el.closest("[data-e2e-locator], [class*='result'], [class*='container'], [class*='tab'], [class*='panel'], div");
-          const parentText = parent ? parent.textContent : "";
-          if (
-            parentText.includes("Runtime") ||
-            parentText.includes("Memory") ||
-            parentText.includes("Beats") ||
-            parentText.includes("Accepted") ||
-            el.className.includes("green") ||
-            el.className.includes("success") ||
-            el.getAttribute("data-e2e-locator") === "submission-result"
-          ) {
-            finalizeAndSave("solved");
-            return;
-          }
+      // Accepted detection
+      if (text === "Accepted") {
+        const parent = el.closest("[data-layout-path], [class*='result'], [class*='console'], [class*='tab'], div");
+        const parentText = parent ? parent.textContent : "";
+        if (
+          parentText.includes("Runtime") ||
+          parentText.includes("Memory") ||
+          parentText.includes("Beats") ||
+          el.getAttribute("data-e2e-locator") === "submission-result"
+        ) {
+          submissionInFlight = false;
+          finalizeAndSave("solved");
+          return;
         }
+      }
 
-        // 2. Non-accepted attempt detection (debounced)
-        const failedVerdicts = [
-          "Wrong Answer",
-          "Time Limit Exceeded",
-          "Runtime Error",
-          "Memory Limit Exceeded",
-          "Compile Error",
-          "Output Limit Exceeded",
-        ];
-        if (failedVerdicts.includes(text)) {
-          const now = Date.now();
-          if (text !== lastDetectedAttemptText || now - lastAttemptTime > 6000) {
-            lastDetectedAttemptText = text;
-            lastAttemptTime = now;
-            state.attempts += 1;
-            persist();
-            render();
-          }
+      // Non-accepted attempt detection
+      const failedVerdicts = [
+        "Wrong Answer",
+        "Time Limit Exceeded",
+        "Runtime Error",
+        "Memory Limit Exceeded",
+        "Compile Error",
+        "Output Limit Exceeded",
+      ];
+      if (failedVerdicts.includes(text)) {
+        const now = Date.now();
+        if (text !== lastDetectedAttemptText || now - lastAttemptTime > 6000) {
+          lastDetectedAttemptText = text;
+          lastAttemptTime = now;
+          state.attempts += 1;
+          persist();
+          render();
         }
       }
     }
   }
 
-  // MutationObserver to catch DOM changes the millisecond "Accepted" renders
+  // MutationObserver to catch DOM changes when submit result renders
   try {
     const observer = new MutationObserver(() => {
       scanDOMForSubmissionResult();
@@ -313,11 +344,7 @@
     });
   } catch (e) {}
 
-  // Periodic safety scan every 1.5 seconds
-  setInterval(scanDOMForSubmissionResult, 1500);
-
-  // snapshot accumulated time when navigating away so the timer doesn't
-  // drift if the page stays in bfcache or is later restored
+  // snapshot accumulated time when navigating away
   window.addEventListener("pagehide", () => {
     if (state.solved || state.paused) return;
     state.pausedAccum += Date.now() - state.startTimestamp;
@@ -327,4 +354,3 @@
 
   render();
 })();
-
