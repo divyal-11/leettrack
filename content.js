@@ -244,12 +244,82 @@
     }
   });
 
+  // ── DOM-based submission detection fallback ────────────────────────────────
+  let lastDetectedAttemptText = "";
+  let lastAttemptTime = 0;
+
+  function scanDOMForSubmissionResult() {
+    if (state.solved) return;
+
+    // Check for submission result elements
+    const candidates = document.querySelectorAll(
+      "[data-e2e-locator='submission-result'], [class*='result'], [class*='status'], span, div, h3, h4, p"
+    );
+
+    for (const el of candidates) {
+      if (el.children.length === 0) {
+        const text = el.textContent.trim();
+
+        // 1. Accepted detection
+        if (text === "Accepted") {
+          const parent = el.closest("[data-e2e-locator], [class*='result'], [class*='container'], [class*='tab'], [class*='panel'], div");
+          const parentText = parent ? parent.textContent : "";
+          if (
+            parentText.includes("Runtime") ||
+            parentText.includes("Memory") ||
+            parentText.includes("Beats") ||
+            parentText.includes("Accepted") ||
+            el.className.includes("green") ||
+            el.className.includes("success") ||
+            el.getAttribute("data-e2e-locator") === "submission-result"
+          ) {
+            finalizeAndSave("solved");
+            return;
+          }
+        }
+
+        // 2. Non-accepted attempt detection (debounced)
+        const failedVerdicts = [
+          "Wrong Answer",
+          "Time Limit Exceeded",
+          "Runtime Error",
+          "Memory Limit Exceeded",
+          "Compile Error",
+          "Output Limit Exceeded",
+        ];
+        if (failedVerdicts.includes(text)) {
+          const now = Date.now();
+          if (text !== lastDetectedAttemptText || now - lastAttemptTime > 6000) {
+            lastDetectedAttemptText = text;
+            lastAttemptTime = now;
+            state.attempts += 1;
+            persist();
+            render();
+          }
+        }
+      }
+    }
+  }
+
+  // MutationObserver to catch DOM changes the millisecond "Accepted" renders
+  try {
+    const observer = new MutationObserver(() => {
+      scanDOMForSubmissionResult();
+    });
+    observer.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  } catch (e) {}
+
+  // Periodic safety scan every 1.5 seconds
+  setInterval(scanDOMForSubmissionResult, 1500);
+
   // snapshot accumulated time when navigating away so the timer doesn't
   // drift if the page stays in bfcache or is later restored
   window.addEventListener("pagehide", () => {
     if (state.solved || state.paused) return;
-    // fake a pause so the stored startTimestamp + pausedAccum is correct
-    // on the next load — we'll resume automatically
     state.pausedAccum += Date.now() - state.startTimestamp;
     state.startTimestamp = Date.now();
     persist();
@@ -257,3 +327,4 @@
 
   render();
 })();
+

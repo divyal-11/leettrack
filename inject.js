@@ -1,60 +1,117 @@
-// Runs in the PAGE's own context (injected via <script src>), not the
-// isolated content-script world — that's the only way to see LeetCode's
-// own fetch/XHR calls. Watches for the submission-check endpoint LeetCode
-// polls after you hit "Submit", and reports the verdict back to the
-// content script via postMessage.
+// Runs in the PAGE's MAIN world context to intercept all LeetCode submit/check network calls.
+// Intercepts both fetch and XMLHttpRequest (GraphQL & REST endpoints).
+// Reports submission verdicts back to content.js via window.postMessage.
 
 (function () {
-  const CHECK_PATTERN = /\/submissions\/detail\/\d+\/check\/?$/;
+  if (window._leettrack_injected) return;
+  window._leettrack_injected = true;
 
-  function emit(data) {
-    if (data && data.state === "SUCCESS") {
-      window.postMessage(
-        {
-          source: "leettrack",
-          type: "SUBMISSION_RESULT",
-          payload: {
-            statusMsg: data.status_msg || "",
-            accepted: data.status_msg === "Accepted",
+  // Patterns for endpoints LeetCode uses for submitting and polling verdict
+  const URL_KEYWORDS = ["submission", "graphql", "submit", "check"];
+
+  function isRelevantUrl(url) {
+    if (!url || typeof url !== "string") return false;
+    const lower = url.toLowerCase();
+    return URL_KEYWORDS.some((kw) => lower.includes(kw));
+  }
+
+  function extractVerdict(data) {
+    if (!data || typeof data !== "object") return null;
+
+    // 1. Direct properties (REST submission check)
+    if (data.status_msg || data.statusDisplay) {
+      const msg = data.status_msg || data.statusDisplay;
+      if (msg === "Pending" || msg === "Judging" || msg === "Compiling") return null;
+      return {
+        statusMsg: msg,
+        accepted: msg.toLowerCase() === "accepted",
+      };
+    }
+
+    // 2. GraphQL nested response data
+    if (data.data) {
+      const sub =
+        data.data.submissionDetails ||
+        data.data.submissionStatus ||
+        data.data.checkSubmissionStatus ||
+        data.data.userCheckSubmissionStatus;
+
+      if (sub && (sub.statusDisplay || sub.status_msg)) {
+        const msg = sub.statusDisplay || sub.status_msg;
+        if (msg === "Pending" || msg === "Judging" || msg === "Compiling") return null;
+        return {
+          statusMsg: msg,
+          accepted: msg.toLowerCase() === "accepted",
+        };
+      }
+    }
+
+    // 3. Status code based checks (LeetCode status_code 10 == Accepted)
+    if (data.state === "SUCCESS" && (data.status_code === 10 || data.status_msg === "Accepted")) {
+      return {
+        statusMsg: data.status_msg || "Accepted",
+        accepted: true,
+      };
+    }
+
+    return null;
+  }
+
+  function emitVerdict(data) {
+    try {
+      const verdict = extractVerdict(data);
+      if (verdict && verdict.statusMsg) {
+        window.postMessage(
+          {
+            source: "leettrack",
+            type: "SUBMISSION_RESULT",
+            payload: verdict,
           },
-        },
-        "*"
-      );
+          "*"
+        );
+      }
+    } catch (err) {
+      // ignore
     }
   }
 
-  // --- patch fetch ---
+  // ── 1. Intercept fetch ──────────────────────────────────────────────────────
   const originalFetch = window.fetch;
   window.fetch = async function (...args) {
     const response = await originalFetch.apply(this, args);
     try {
       const url = typeof args[0] === "string" ? args[0] : args[0]?.url || "";
-      if (CHECK_PATTERN.test(url)) {
-        response.clone().json().then(emit).catch(() => {});
+      if (isRelevantUrl(url)) {
+        response
+          .clone()
+          .json()
+          .then(emitVerdict)
+          .catch(() => {});
       }
-    } catch (e) {
-      // never let instrumentation break the page
-    }
+    } catch (e) {}
     return response;
   };
 
-  // --- patch XHR (LeetCode sometimes uses this path instead of fetch) ---
-  const OriginalOpen = XMLHttpRequest.prototype.open;
-  const OriginalSend = XMLHttpRequest.prototype.send;
+  // ── 2. Intercept XMLHttpRequest ─────────────────────────────────────────────
+  const originalOpen = XMLHttpRequest.prototype.open;
+  const originalSend = XMLHttpRequest.prototype.send;
 
   XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-    this._ltUrl = url || "";
-    return OriginalOpen.apply(this, [method, url, ...rest]);
+    this._ltUrl = typeof url === "string" ? url : "";
+    return originalOpen.apply(this, [method, url, ...rest]);
   };
 
   XMLHttpRequest.prototype.send = function (...args) {
-    if (CHECK_PATTERN.test(this._ltUrl || "")) {
+    if (isRelevantUrl(this._ltUrl)) {
       this.addEventListener("load", function () {
         try {
-          emit(JSON.parse(this.responseText));
+          if (this.responseText) {
+            const data = JSON.parse(this.responseText);
+            emitVerdict(data);
+          }
         } catch (e) {}
       });
     }
-    return OriginalSend.apply(this, args);
+    return originalSend.apply(this, args);
   };
 })();
