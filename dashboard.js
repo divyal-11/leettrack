@@ -31,7 +31,7 @@ function renderStatStrip(stats) {
 }
 
 function renderHeatmap(stats) {
-  const days = 91; // ~13 weeks
+  const days = 182; // ~26 weeks
   const cells = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
