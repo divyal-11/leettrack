@@ -13,6 +13,7 @@ function fmtDate(ts) {
   return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+// ── Stat Strip ────────────────────────────────────────────────────────────────
 function renderStatStrip(stats) {
   const totalTimeMin = Math.round(
     ALL_SESSIONS.reduce((a, s) => a + s.duration, 0) / 60
@@ -30,13 +31,13 @@ function renderStatStrip(stats) {
     .join("");
 }
 
+// ── Heatmap ───────────────────────────────────────────────────────────────────
 function renderHeatmap(stats) {
   const days = 182; // ~26 weeks
   const cells = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // find max solved-in-a-day for scaling
   let max = 1;
   Object.values(stats.dailyMap).forEach((d) => (max = Math.max(max, d.solved)));
 
@@ -51,14 +52,13 @@ function renderHeatmap(stats) {
       const ratio = solved / max;
       level = ratio > 0.75 ? 4 : ratio > 0.5 ? 3 : ratio > 0.25 ? 2 : 1;
     }
-    cells.push(
-      `<div class="heat-cell l${level}" title="${key}: ${solved} solved"></div>`
-    );
+    cells.push(`<div class="heat-cell l${level}" title="${key}: ${solved} solved"></div>`);
   }
   document.getElementById("heatmap").innerHTML = cells.join("");
   document.getElementById("trailSub").textContent = `last ${days} days`;
 }
 
+// ── Difficulty Bars ───────────────────────────────────────────────────────────
 function renderDiffBars(stats) {
   const order = ["Easy", "Medium", "Hard"];
   const maxCount = Math.max(1, ...order.map((d) => stats.difficultyStats[d]?.count || 0));
@@ -76,6 +76,7 @@ function renderDiffBars(stats) {
     .join("");
 }
 
+// ── Top Topics ────────────────────────────────────────────────────────────────
 function renderTags(stats) {
   const top = stats.tagStats.slice(0, 8);
   if (!top.length) {
@@ -88,6 +89,63 @@ function renderTags(stats) {
     .join("");
 }
 
+// ── Review Queue ──────────────────────────────────────────────────────────────
+// Shows SR cards whose next review date is today or overdue
+function renderReviewQueue(due) {
+  const sub = document.getElementById("reviewSub");
+  const list = document.getElementById("reviewList");
+
+  if (!due || due.length === 0) {
+    sub.textContent = "all clear";
+    list.innerHTML = '<div class="tag-empty">No reviews due — keep grinding! 🎉</div>';
+    return;
+  }
+
+  sub.innerHTML = `<span class="review-badge">${due.length} due</span>`;
+
+  list.innerHTML = due.map((card) => {
+    const overdueMs = Date.now() - card.nextReview;
+    const daysOver = Math.floor(overdueMs / (1000 * 60 * 60 * 24));
+    const urgency = daysOver >= 3 ? "review-urgent" : daysOver >= 1 ? "review-warn" : "";
+    return `
+      <div class="review-row ${urgency}">
+        <a href="https://leetcode.com/problems/${card.slug}/" target="_blank" class="prob-link review-title">${card.title || card.slug}</a>
+        <span class="badge ${card.difficulty || ''}">${card.difficulty || '?'}</span>
+        <span class="review-meta">interval ${card.interval}d · ${daysOver > 0 ? daysOver + 'd overdue' : 'due today'}</span>
+      </div>`;
+  }).join("");
+}
+
+// ── Weak Spots ────────────────────────────────────────────────────────────────
+// Topics sorted by YOUR average struggle score (ascending = hardest for you first)
+function renderWeakSpots(stats) {
+  const el = document.getElementById("weakSpots");
+
+  const withScores = stats.tagStats
+    .filter((t) => t.solved > 0)
+    .sort((a, b) => a.avgStruggle - b.avgStruggle) // lowest score = hardest first
+    .slice(0, 8);
+
+  if (!withScores.length) {
+    el.innerHTML = '<div class="tag-empty">Solve more problems to see your weak spots.</div>';
+    return;
+  }
+
+  el.innerHTML = withScores.map((t) => {
+    const pd = LeetTrackStorage.personalDifficulty(t.avgStruggle);
+    return `
+      <div class="tag-row">
+        <span class="tag-name">${t.tag}</span>
+        <div class="struggle-bar-wrap">
+          <div class="struggle-bar" style="width:${t.avgStruggle}%" title="avg struggle score ${t.avgStruggle}/100"></div>
+        </div>
+        <span class="pd-badge ${pd.cls}">${pd.label}</span>
+        <span class="tag-count">${t.successRate}%</span>
+      </div>`;
+  }).join("");
+}
+
+// ── History Table ─────────────────────────────────────────────────────────────
 let sortCol = "timestamp";
 let sortDir = -1; // -1 = desc, 1 = asc
 
@@ -108,38 +166,47 @@ function renderHistory() {
 
   document.getElementById("emptyState").style.display = ALL_SESSIONS.length ? "none" : "block";
 
-  // update sort indicators on headers
   document.querySelectorAll("table.history th[data-sort]").forEach((th) => {
     const arrow = th.dataset.sort === sortCol ? (sortDir === 1 ? " ↑" : " ↓") : "";
     th.textContent = th.dataset.label + arrow;
   });
 
   document.getElementById("historyBody").innerHTML = rows
-    .map(
-      (s) => `
+    .map((s) => {
+      const score = LeetTrackStorage.computeStruggleScore(s);
+      const pd = LeetTrackStorage.personalDifficulty(score);
+      const pdBadge = s.status === "solved"
+        ? `<span class="pd-badge ${pd.cls}">${pd.label}</span>`
+        : `<span class="pd-badge pd-unsolved">—</span>`;
+      return `
       <tr>
         <td>${fmtDate(s.timestamp)}</td>
         <td><a href="https://leetcode.com/problems/${s.slug}/" target="_blank" class="prob-link">${s.title}</a></td>
         <td><span class="badge ${s.difficulty}">${s.difficulty}</span></td>
+        <td>${pdBadge}</td>
         <td>${(s.tags || []).slice(0, 3).join(", ") || "—"}</td>
         <td class="time-mono">${fmtTime(s.duration)}</td>
         <td>${s.attempts}</td>
         <td class="status-${s.status}">${s.status === "solved" ? "Solved" : "Unsolved"}</td>
         <td class="notes-cell">${s.notes ? `<span title="${s.notes.replace(/"/g,'&quot;')}">${s.notes.length > 40 ? s.notes.slice(0,40) + '…' : s.notes}</span>` : "—"}</td>
-      </tr>`
-    )
+      </tr>`;
+    })
     .join("");
 }
 
+// ── CSV Export ────────────────────────────────────────────────────────────────
 function exportCSV() {
-  const header = ["date", "title", "difficulty", "tags", "duration_sec", "attempts", "status", "notes"];
+  const header = ["date", "title", "difficulty", "personal_difficulty", "tags", "duration_sec", "attempts", "status", "notes"];
   const lines = [header.join(",")];
   ALL_SESSIONS.forEach((s) => {
+    const score = LeetTrackStorage.computeStruggleScore(s);
+    const pd = s.status === "solved" ? LeetTrackStorage.personalDifficulty(score).label : "unsolved";
     lines.push(
       [
         new Date(s.timestamp).toISOString(),
         `"${s.title.replace(/"/g, '""')}"`,
         s.difficulty,
+        pd,
         `"${(s.tags || []).join("; ")}"`,
         s.duration,
         s.attempts,
@@ -157,14 +224,20 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
+// ── Init ──────────────────────────────────────────────────────────────────────
 function loadAndRender() {
-  chrome.runtime.sendMessage({ type: "GET_STATS" }, (res) => {
-    ALL_SESSIONS = res.sessions;
-    ALL_STATS = res.stats;
+  Promise.all([
+    new Promise((res) => chrome.runtime.sendMessage({ type: "GET_STATS" }, res)),
+    new Promise((res) => chrome.runtime.sendMessage({ type: "GET_REVIEW_QUEUE" }, res)),
+  ]).then(([statsRes, reviewRes]) => {
+    ALL_SESSIONS = statsRes.sessions;
+    ALL_STATS = statsRes.stats;
     renderStatStrip(ALL_STATS);
     renderHeatmap(ALL_STATS);
     renderDiffBars(ALL_STATS);
     renderTags(ALL_STATS);
+    renderWeakSpots(ALL_STATS);
+    renderReviewQueue(reviewRes.due);
     renderHistory();
   });
 }
@@ -174,7 +247,6 @@ document.getElementById("fStatus").addEventListener("change", renderHistory);
 document.getElementById("fSearch").addEventListener("input", renderHistory);
 document.getElementById("exportBtn").addEventListener("click", exportCSV);
 
-// sortable column headers
 document.querySelectorAll("table.history th[data-sort]").forEach((th) => {
   th.addEventListener("click", () => {
     if (sortCol === th.dataset.sort) {

@@ -32,17 +32,36 @@
       </div>
     </section>
 
+    <!-- Review Queue — due reviews from spaced repetition -->
+    <section class="panel" id="reviewPanel">
+      <div class="panel-head">
+        <h2>📅 Review queue</h2>
+        <span class="panel-sub" id="reviewSub"></span>
+      </div>
+      <div id="reviewList"></div>
+    </section>
+
     <div class="two-col">
       <section class="panel">
         <div class="panel-head"><h2>By difficulty</h2></div>
         <div id="diffBars" class="diff-bars"></div>
       </section>
 
+      <!-- Weak Spots — topics sorted by your personal struggle score -->
       <section class="panel">
-        <div class="panel-head"><h2>Top topics</h2></div>
-        <div id="tagList" class="tag-list"></div>
+        <div class="panel-head">
+          <h2>⚠️ Weak spots</h2>
+          <span class="panel-sub">by your struggle score</span>
+        </div>
+        <div id="weakSpots" class="tag-list"></div>
       </section>
     </div>
+
+    <!-- Top topics (original panel, now labelled clearly) -->
+    <section class="panel">
+      <div class="panel-head"><h2>Top topics</h2></div>
+      <div id="tagList" class="tag-list"></div>
+    </section>
 
     <section class="panel">
       <div class="panel-head">
@@ -68,6 +87,7 @@
             <th data-sort="timestamp" data-label="Date" style="cursor:pointer">Date ↓</th>
             <th>Problem</th>
             <th>Difficulty</th>
+            <th>Personal</th>
             <th>Topics</th>
             <th data-sort="duration" data-label="Time" style="cursor:pointer">Time</th>
             <th data-sort="attempts" data-label="Attempts" style="cursor:pointer">Attempts</th>
