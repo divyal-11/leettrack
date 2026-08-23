@@ -34,7 +34,17 @@
     <div class="today" id="today">0 problems today</div>
     <div class="review-due" id="reviewDue" style="display:none"></div>
 
-    <button id="openDash" class="dash-btn">Open dashboard</button>
+    <button id="openPlan" class="plan-btn">📋 Open Today's Plan</button>
+    <button id="openDash" class="dash-btn">📊 Full Dashboard</button>
+
+    <!-- Reminder Settings -->
+    <div class="reminder-settings">
+      <label class="reminder-toggle">
+        <input type="checkbox" id="notifEnable" checked />
+        <span>Daily reminder</span>
+      </label>
+      <input type="time" id="notifTime" value="09:00" class="reminder-time" />
+    </div>
   </div>
 
   <script src="storage.js"></script>
