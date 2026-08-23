@@ -18,7 +18,17 @@ const LeetTrackStorage = (() => {
     return new Promise((resolve) => {
       chrome.storage.local.get([SESSIONS_KEY], (res) => {
         const sessions = res[SESSIONS_KEY] || [];
-        sessions.push(session);
+        // replace an existing session for the same slug on the same day
+        // so reopening + resubmitting a problem doesn't create duplicates
+        const todayKey = dayKey(session.timestamp);
+        const idx = sessions.findIndex(
+          (s) => s.slug === session.slug && dayKey(s.timestamp) === todayKey
+        );
+        if (idx !== -1) {
+          sessions[idx] = session;
+        } else {
+          sessions.push(session);
+        }
         chrome.storage.local.set({ [SESSIONS_KEY]: sessions }, () => resolve(session));
       });
     });
