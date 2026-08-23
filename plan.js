@@ -1,7 +1,11 @@
 function fmtTodayDate() {
-  const options = { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' };
+  const options = { weekday: "long", month: "short", day: "numeric", year: "numeric" };
   return new Date().toLocaleDateString(undefined, options);
 }
+
+let CURRENT_PLAN = null;
+let CURRENT_GOALS = null;
+let CURRENT_NOTIF_SETTINGS = null;
 
 function renderPlan() {
   document.getElementById("welcomeDate").textContent = `Plan for ${fmtTodayDate()}`;
@@ -9,9 +13,15 @@ function renderPlan() {
   Promise.all([
     new Promise((res) => chrome.runtime.sendMessage({ type: "GET_DAILY_PLAN" }, res)),
     new Promise((res) => chrome.runtime.sendMessage({ type: "GET_STATS" }, res)),
-  ]).then(([planRes, statsRes]) => {
+    new Promise((res) => chrome.runtime.sendMessage({ type: "GET_NOTIF_SETTINGS" }, res)),
+  ]).then(([planRes, statsRes, notifRes]) => {
     const { plan, goals } = planRes || {};
     const { stats, sessions } = statsRes || {};
+    const notifSettings = notifRes?.settings || { hour: 19, minute: 0 };
+
+    CURRENT_PLAN = plan;
+    CURRENT_GOALS = goals;
+    CURRENT_NOTIF_SETTINGS = notifSettings;
 
     const reviews = plan?.reviews || [];
     const goalWork = plan?.goalWork || [];
@@ -22,9 +32,9 @@ function renderPlan() {
     // ── Summary Status ────────────────────────────────────────────────────────
     let statusText = "Ready to start today's session!";
     if (reviews.length > 0 && todaySolved === 0) {
-      statusText = `You have ${reviews.length} review${reviews.length === 1 ? '' : 's'} waiting and 0 problems solved today.`;
+      statusText = `You have ${reviews.length} review${reviews.length === 1 ? "" : "s"} waiting and 0 problems solved today.`;
     } else if (todaySolved > 0) {
-      statusText = `Great job! You've already solved ${todaySolved} problem${todaySolved === 1 ? '' : 's'} today. Keep the momentum going!`;
+      statusText = `Great job! You've already solved ${todaySolved} problem${todaySolved === 1 ? "" : "s"} today. Keep the momentum going!`;
     } else if (reviews.length === 0 && goalWork.length > 0) {
       statusText = `All reviews cleared! Work toward your active topic goals below.`;
     }
@@ -68,7 +78,7 @@ function renderPlan() {
         return `
           <div class="plan-item ${urgencyClass}">
             <div class="item-left">
-              <span class="badge ${card.difficulty || 'Medium'}">${card.difficulty || 'Medium'}</span>
+              <span class="badge ${card.difficulty || "Medium"}">${card.difficulty || "Medium"}</span>
               <a href="https://leetcode.com/problems/${card.slug}/" target="_blank" class="prob-link" title="${card.title || card.slug}">
                 ${card.title || card.slug}
               </a>
@@ -98,7 +108,7 @@ function renderPlan() {
 
         const pct = g.target > 0 ? Math.min(100, Math.round((g.solved / g.target) * 100)) : 0;
         const tagSlug = g.topic.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        const solveUrl = unsolvedSpecific 
+        const solveUrl = unsolvedSpecific
           ? `https://leetcode.com/problems/${unsolvedSpecific.slug}/`
           : `https://leetcode.com/tag/${tagSlug}/`;
         const actionText = unsolvedSpecific
@@ -146,5 +156,74 @@ function renderPlan() {
     }
   });
 }
+
+// ── Google Calendar Sync Action ───────────────────────────────────────────────
+function openGoogleCalendar() {
+  const plan = CURRENT_PLAN;
+  const goals = CURRENT_GOALS;
+  const notifSettings = CURRENT_NOTIF_SETTINGS;
+
+  const reviews = plan?.reviews || [];
+  const goalWork = plan?.goalWork || [];
+
+  let title = "🔥 LeetCode Practice & Revisions";
+  if (reviews.length > 0) {
+    title = `🔥 LeetCode: ${reviews.length} Revision${reviews.length === 1 ? "" : "s"} Due`;
+  } else if (goalWork.length > 0) {
+    title = `🔥 LeetCode: ${goalWork[0].topic} Practice`;
+  }
+
+  const descLines = ["🎯 Today's LeetCode Roadmap (LeetTrack):", ""];
+
+  if (reviews.length > 0) {
+    descLines.push("📅 SPACING REVISIONS DUE TODAY:");
+    reviews.forEach((r, i) => {
+      descLines.push(`${i + 1}. ${r.title || r.slug} (${r.difficulty || "Medium"}): https://leetcode.com/problems/${r.slug}/`);
+    });
+    descLines.push("");
+  }
+
+  if (goalWork.length > 0) {
+    descLines.push("🎯 TOPIC GOALS:");
+    goalWork.forEach((g) => {
+      descLines.push(`• ${g.topic}: ${g.solved}/${g.target} done (${g.remaining} remaining)`);
+      const goalObj = goals && goals[g.topic];
+      const specific = goalObj?.problems || [];
+      if (specific.length > 0) {
+        specific.slice(0, 3).forEach((p) => {
+          descLines.push(`   ➔ ${p.title}: https://leetcode.com/problems/${p.slug}/`);
+        });
+      }
+    });
+    descLines.push("");
+  }
+
+  descLines.push("Happy Grinding! Tracked with LeetTrack.");
+
+  const now = new Date();
+  const startTime = new Date();
+  if (notifSettings && typeof notifSettings.hour === "number") {
+    startTime.setHours(notifSettings.hour, notifSettings.minute || 0, 0, 0);
+  } else {
+    startTime.setHours(19, 0, 0, 0);
+  }
+
+  if (startTime <= now) {
+    startTime.setHours(now.getHours() + 1, 0, 0, 0);
+  }
+
+  const endTime = new Date(startTime.getTime() + 45 * 60 * 1000); // 45 minutes
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const formatGCalDate = (d) =>
+    `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+
+  const datesParam = `${formatGCalDate(startTime)}/${formatGCalDate(endTime)}`;
+  const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(descLines.join("\n"))}&dates=${datesParam}`;
+
+  window.open(gcalUrl, "_blank");
+}
+
+document.getElementById("addCalendarBtn").addEventListener("click", openGoogleCalendar);
 
 renderPlan();

@@ -383,6 +383,7 @@ function loadAndRender() {
     renderDiffBars(ALL_STATS);
     renderTags(ALL_STATS);
     renderWeakSpots(ALL_STATS);
+    CURRENT_DUE_REVIEWS = reviewRes.due || [];
     renderReviewQueue(reviewRes.due);
     renderHistory();
   });
@@ -438,6 +439,41 @@ document.querySelectorAll("table.history th[data-sort]").forEach((th) => {
     }
     renderHistory();
   });
+});
+
+// Google Calendar for Review Queue
+let CURRENT_DUE_REVIEWS = [];
+
+document.getElementById("reviewCalBtn").addEventListener("click", () => {
+  const due = CURRENT_DUE_REVIEWS;
+  if (!due || due.length === 0) {
+    alert("No reviews due today! All spaced repetition cards are up to date.");
+    return;
+  }
+
+  const title = `🔥 LeetCode: ${due.length} Revision${due.length === 1 ? "" : "s"} Due`;
+  const descLines = ["📅 LeetCode Spaced Repetition Revisions Due Today:", ""];
+  due.forEach((r, i) => {
+    descLines.push(`${i + 1}. ${r.title || r.slug} (${r.difficulty || "Medium"}): https://leetcode.com/problems/${r.slug}/`);
+  });
+  descLines.push("", "Happy Grinding! Tracked with LeetTrack.");
+
+  const now = new Date();
+  const startTime = new Date();
+  startTime.setHours(19, 0, 0, 0);
+  if (startTime <= now) {
+    startTime.setHours(now.getHours() + 1, 0, 0, 0);
+  }
+  const endTime = new Date(startTime.getTime() + 45 * 60 * 1000);
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const formatGCalDate = (d) =>
+    `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+
+  const datesParam = `${formatGCalDate(startTime)}/${formatGCalDate(endTime)}`;
+  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(descLines.join("\n"))}&dates=${datesParam}`;
+
+  window.open(url, "_blank");
 });
 
 document.getElementById("clearBtn").addEventListener("click", () => {

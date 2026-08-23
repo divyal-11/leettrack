@@ -63,8 +63,11 @@
     <!-- Review Queue — due reviews from spaced repetition -->
     <section class="panel" id="reviewPanel">
       <div class="panel-head">
-        <h2>📅 Review queue</h2>
-        <span class="panel-sub" id="reviewSub"></span>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h2>📅 Review queue</h2>
+          <span class="panel-sub" id="reviewSub"></span>
+        </div>
+        <button id="reviewCalBtn" class="ghost-btn" style="font-size:11px; padding:4px 10px; cursor:pointer;">📅 Add to Google Calendar</button>
       </div>
       <div id="reviewList"></div>
     </section>

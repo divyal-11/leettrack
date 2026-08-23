@@ -14,6 +14,7 @@ Built for fun to make daily LeetCode practice a lot less chaotic.
 - **Topic & problem goals**: Create custom targets (e.g. *Dynamic Programming → 20 problems* or *Blind 75*) and add specific problem names/numbers to your checklist.
 - **Today's practice plan**: Open the plan page each morning to see which questions are due for revision and what to solve next.
 - **Sync with LeetCode**: One click pulls your total solved count from your LeetCode profile directly into your dashboard.
+- **📅 Google Calendar Reminders**: 1-click export your daily practice plan & due revisions directly into Google Calendar so you get reminders on your phone and smartwatch.
 - **Daily reminder**: Optional browser notification at your chosen time (like 9:00 AM) so you never break your streak.
 - **100% private**: All your session logs and notes stay on your local browser (`chrome.storage.local`).
 
