@@ -74,7 +74,7 @@ main {
 
 .stat-strip {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   margin-bottom: 28px;
 }
@@ -243,8 +243,13 @@ table.history td {
 .status-solved { color: var(--teal); }
 .status-unsolved { color: var(--rose); }
 .time-mono { font-family: 'JetBrains Mono', monospace; }
+.prob-link {
+  color: var(--text);
+  text-decoration: none;
+}
+.prob-link:hover { color: var(--amber); text-decoration: underline; }
 
 @media (max-width: 720px) {
-  .stat-strip { grid-template-columns: repeat(2, 1fr); }
+  .stat-strip { grid-template-columns: repeat(3, 1fr); }
   .two-col { grid-template-columns: 1fr; }
 }

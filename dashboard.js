@@ -106,7 +106,7 @@ function renderHistory() {
       (s) => `
       <tr>
         <td>${fmtDate(s.timestamp)}</td>
-        <td>${s.title}</td>
+        <td><a href="https://leetcode.com/problems/${s.slug}/" target="_blank" class="prob-link">${s.title}</a></td>
         <td><span class="badge ${s.difficulty}">${s.difficulty}</span></td>
         <td>${(s.tags || []).slice(0, 3).join(", ") || "—"}</td>
         <td class="time-mono">${fmtTime(s.duration)}</td>
