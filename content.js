@@ -257,10 +257,23 @@
   });
 
   // Track clicks on LeetCode's submit button
-  // Track clicks on LeetCode's submit/run buttons
+  // Track clicks and keyboard shortcuts on LeetCode's submit/run buttons
   let submissionInFlight = false;
   let lastSubmitClickTime = 0;
 
+  // 1. Keyboard shortcut: Ctrl + Enter / Cmd + Enter (LeetCode submit shortcut)
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === "Enter" || e.code === "Enter" || e.code === "NumpadEnter")) {
+        submissionInFlight = true;
+        lastSubmitClickTime = Date.now();
+      }
+    },
+    true
+  );
+
+  // 2. Mouse clicks on Submit / Run buttons
   document.addEventListener(
     "click",
     (e) => {
@@ -268,7 +281,7 @@
       if (el) {
         const txt = (el.textContent || "").trim().toLowerCase();
         
-        // 1. If user clicked "Run" / "Run Code" -> NOT a submission, clear in-flight flag
+        // If user clicked "Run" / "Run Code" -> NOT a submission, clear in-flight flag
         if (
           txt === "run" ||
           txt === "run code" ||
@@ -279,7 +292,7 @@
           return;
         }
 
-        // 2. If user clicked "Submit" -> mark submission in-flight
+        // If user clicked "Submit" -> mark submission in-flight
         if (
           txt === "submit" ||
           txt.startsWith("submit") ||
