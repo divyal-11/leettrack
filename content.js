@@ -257,6 +257,7 @@
   });
 
   // Track clicks on LeetCode's submit button
+  // Track clicks on LeetCode's submit/run buttons
   let submissionInFlight = false;
   let lastSubmitClickTime = 0;
 
@@ -266,6 +267,19 @@
       const el = e.target.closest("button, [role='button'], div");
       if (el) {
         const txt = (el.textContent || "").trim().toLowerCase();
+        
+        // 1. If user clicked "Run" / "Run Code" -> NOT a submission, clear in-flight flag
+        if (
+          txt === "run" ||
+          txt === "run code" ||
+          txt.startsWith("run") ||
+          el.getAttribute("data-e2e-locator") === "console-run-button"
+        ) {
+          submissionInFlight = false;
+          return;
+        }
+
+        // 2. If user clicked "Submit" -> mark submission in-flight
         if (
           txt === "submit" ||
           txt.startsWith("submit") ||
@@ -302,8 +316,12 @@
 
   function scanDOMForSubmissionResult() {
     if (state.solved) return;
-    // Only search DOM if submit button was clicked in the last 45s or submission was in flight
-    if (!submissionInFlight && Date.now() - lastSubmitClickTime > 45000) return;
+    // Only search DOM if submit button was clicked in the last 45s AND submission is in flight
+    if (!submissionInFlight) return;
+    if (Date.now() - lastSubmitClickTime > 45000) {
+      submissionInFlight = false;
+      return;
+    }
 
     const resultElements = document.querySelectorAll(
       "[data-e2e-locator='submission-result'], div[class*='text-green'], span[class*='text-green'], div[class*='text-sd-easy']"
@@ -312,14 +330,31 @@
     for (const el of resultElements) {
       const text = el.textContent.trim();
 
-      // Accepted detection
+      // Check if inside testcase runner / "Test Result" / "Case 1" container -> MUST IGNORE
+      const parent = el.closest(
+        "[data-layout-path], [class*='result'], [class*='console'], [class*='tab'], [role='tabpanel'], div"
+      );
+      const parentText = parent ? parent.textContent : "";
+
+      const isTestcaseTab =
+        parentText.includes("Test Result") ||
+        parentText.includes("Testcase") ||
+        parentText.includes("Case 1") ||
+        parentText.includes("Case 2") ||
+        parentText.includes("Case 3") ||
+        parentText.includes("Expected") ||
+        parentText.includes("Output");
+
+      if (isTestcaseTab) {
+        continue; // Skip sample testcase runs completely!
+      }
+
+      // Accepted detection for real submissions
       if (text === "Accepted") {
-        const parent = el.closest("[data-layout-path], [class*='result'], [class*='console'], [class*='tab'], div");
-        const parentText = parent ? parent.textContent : "";
         if (
-          parentText.includes("Runtime") ||
-          parentText.includes("Memory") ||
           parentText.includes("Beats") ||
+          parentText.includes("Submissions") ||
+          parentText.includes("Submission Result") ||
           el.getAttribute("data-e2e-locator") === "submission-result"
         ) {
           submissionInFlight = false;
@@ -343,6 +378,7 @@
           lastDetectedAttemptText = text;
           lastAttemptTime = now;
           state.attempts += 1;
+          submissionInFlight = false;
           persist();
           render();
         }

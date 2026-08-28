@@ -1,5 +1,6 @@
 // Runs in the PAGE's MAIN world context to intercept all LeetCode submit/check network calls.
 // Intercepts both fetch and XMLHttpRequest (GraphQL & REST endpoints).
+// Filters out "Run Code" / testcase sample runs so only REAL Submissions are captured.
 // Reports submission verdicts back to content.js via window.postMessage.
 
 (function () {
@@ -9,6 +10,10 @@
   function isSubmissionEndpoint(url) {
     if (!url || typeof url !== "string") return false;
     const lower = url.toLowerCase();
+    // Exclude explicit interpret / run-code endpoints
+    if (lower.includes("interpret_solution") || lower.includes("runcode") || lower.includes("testcase")) {
+      return false;
+    }
     return (
       lower.includes("/submissions/detail/") ||
       lower.includes("/submissions/check/") ||
@@ -18,8 +23,52 @@
     );
   }
 
+  // Returns true if this payload is from "Run Code" / sample testcase check, NOT a real submission
+  function isTestcaseRun(data) {
+    if (!data || typeof data !== "object") return false;
+
+    // 1. Check REST interpret / runcode fields
+    if (
+      data.code_answer !== undefined ||
+      data.expected_code_answer !== undefined ||
+      data.code_output !== undefined ||
+      data.interpret_id !== undefined ||
+      data.interpret_status_msg !== undefined ||
+      data.run_success !== undefined ||
+      data.correct_run_testcases !== undefined ||
+      (typeof data.submission_id === "string" &&
+        (data.submission_id.startsWith("interpret_") || data.submission_id.startsWith("runcode_")))
+    ) {
+      return true;
+    }
+
+    // 2. Check GraphQL interpret / runCode fields
+    if (data.data) {
+      if (
+        data.data.interpretSolution ||
+        data.data.runCode ||
+        data.data.interpretSolutionStatus ||
+        data.data.runCodeStatus ||
+        data.data.checkRunCodeStatus
+      ) {
+        return true;
+      }
+      const sub = data.data.submissionDetails || data.data.submissionStatus;
+      if (sub && (sub.interpret_id || sub.code_answer || sub.expected_code_answer || sub.run_success !== undefined)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   function extractVerdict(data) {
     if (!data || typeof data !== "object") return null;
+
+    // Discard any testcase / "Run Code" execution
+    if (isTestcaseRun(data)) {
+      return null;
+    }
 
     // 1. Direct REST submission check response
     if (data.status_msg || data.statusDisplay) {
