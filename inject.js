@@ -74,11 +74,14 @@
     if (data.status_msg || data.statusDisplay) {
       const msg = data.status_msg || data.statusDisplay;
       if (["pending", "judging", "compiling", "started"].includes(msg.toLowerCase())) return null;
-      if (data.state && data.state !== "SUCCESS") return null;
-      return {
-        statusMsg: msg,
-        accepted: msg.toLowerCase() === "accepted",
-      };
+      // ⚠️ DO NOT discard non-SUCCESS states — they are failed submissions (WA, TLE, RE, etc.)
+      // The old guard `if (data.state && data.state !== "SUCCESS") return null;` was blocking attempts.
+      const accepted = msg.toLowerCase() === "accepted";
+      const failed = ["wrong answer", "time limit exceeded", "runtime error",
+                      "memory limit exceeded", "compile error", "output limit exceeded"]
+                      .includes(msg.toLowerCase());
+      if (!accepted && !failed) return null; // ignore truly unrecognised states
+      return { statusMsg: msg, accepted };
     }
 
     // 2. GraphQL response for submission status / check

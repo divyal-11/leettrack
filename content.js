@@ -176,13 +176,16 @@
     elTime.textContent = fmt(duration);
 
     if (status === "solved") {
-      const expected = { Easy: 900, Medium: 1800, Hard: 2700 };
-      const exp = expected[session.difficulty] || 1800;
-      const score = Math.max(
-        0,
-        Math.round(100 - Math.max(0, (duration / exp - 1) * 35) - (session.attempts || 0) * 12)
-      );
-      const pd = score >= 80 ? "Easy ✓" : score >= 50 ? "Medium" : score >= 20 ? "Hard" : "Very Hard";
+      // Reuse the same formula as storage.js personalDifficulty
+      const exp = { Easy: 10 * 60, Medium: 20 * 60, Hard: 35 * 60 };
+      const expected = exp[session.difficulty] || exp.Medium;
+      const timeRatio = duration / expected;
+      const timePenalty = timeRatio <= 1 ? 0 : Math.min(65, (timeRatio - 1) * 40);
+      const attemptWeights = { Easy: 15, Medium: 10, Hard: 7 };
+      const penaltyPerAttempt = attemptWeights[session.difficulty] || 10;
+      const attemptPenalty = Math.min(40, (session.attempts || 0) * penaltyPerAttempt);
+      const score = Math.max(0, Math.round(100 - timePenalty - attemptPenalty));
+      const pd = score >= 85 ? "Mastered ✓" : score >= 65 ? "Good Pace" : score >= 40 ? "Needed Time" : score >= 15 ? "Struggled" : "Very Hard";
       elStatus.textContent = `Accepted ✓ · Personal: ${pd} (${score})`;
       elStatus.className = "lt-status lt-status-solved";
     } else {
@@ -314,12 +317,19 @@
     if (state.solved) return;
 
     submissionInFlight = false;
+
     if (data.payload.accepted) {
       finalizeAndSave("solved");
     } else {
+      // Wrong Answer / TLE / Runtime Error, etc. — count as an attempt
       state.attempts += 1;
       persist();
       render();
+      // Flash widget border red briefly to give visual feedback
+      box.style.boxShadow = "0 0 0 2px #D9534F";
+      elStatus.textContent = `❌ ${data.payload.statusMsg} · Attempt ${state.attempts}`;
+      elStatus.className = "lt-status lt-status-unsolved";
+      setTimeout(() => { box.style.boxShadow = ""; }, 2000);
     }
   });
 
@@ -337,7 +347,9 @@
     }
 
     const resultElements = document.querySelectorAll(
-      "[data-e2e-locator='submission-result'], div[class*='text-green'], span[class*='text-green'], div[class*='text-sd-easy']"
+      "[data-e2e-locator='submission-result'], " +
+      "div[class*='text-green'], span[class*='text-green'], div[class*='text-sd-easy'], " +
+      "div[class*='text-red'], span[class*='text-red'], div[class*='text-sd-hard'], span[class*='text-sd-hard']"
     );
 
     for (const el of resultElements) {
@@ -376,7 +388,7 @@
         }
       }
 
-      // Non-accepted attempt detection
+      // Failed verdict detection (DOM fallback for when network intercept missed it)
       const failedVerdicts = [
         "Wrong Answer",
         "Time Limit Exceeded",
@@ -394,6 +406,11 @@
           submissionInFlight = false;
           persist();
           render();
+          // Flash red border on widget
+          box.style.boxShadow = "0 0 0 2px #D9534F";
+          elStatus.textContent = `❌ ${text} · Attempt ${state.attempts}`;
+          elStatus.className = "lt-status lt-status-unsolved";
+          setTimeout(() => { box.style.boxShadow = ""; }, 2000);
         }
       }
     }

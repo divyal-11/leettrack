@@ -476,6 +476,7 @@ table.history td {
   white-space: nowrap;
 }
 .pd-easy    { color: var(--teal); background: rgba(79,195,161,0.12); }
+.pd-good    { color: #60c7f5; background: rgba(96,199,245,0.12); }
 .pd-medium  { color: var(--amber); background: rgba(232,163,61,0.12); }
 .pd-hard    { color: var(--rose); background: rgba(217,83,79,0.12); }
 .pd-vhard   { color: #c084fc; background: rgba(192,132,252,0.12); }

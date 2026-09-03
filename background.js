@@ -181,16 +181,44 @@ async function fetchLeetCodeStats(manualUsername) {
 }
 
 
+// ─── Fetch topic tags for a problem slug from LeetCode GraphQL ───────────────
+async function fetchTopicTags(slug) {
+  try {
+    const resp = await fetch("https://leetcode.com/graphql", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Referer: "https://leetcode.com" },
+      body: JSON.stringify({
+        query: `query questionData($titleSlug: String!) {
+          question(titleSlug: $titleSlug) {
+            topicTags { name }
+          }
+        }`,
+        variables: { titleSlug: slug },
+      }),
+    });
+    if (!resp.ok) return [];
+    const json = await resp.json();
+    return (json?.data?.question?.topicTags || []).map((t) => t.name);
+  } catch (e) {
+    return [];
+  }
+}
+
 // ─── Message Handlers ─────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === "SAVE_SESSION") {
-    LeetTrackStorage.saveSession(msg.session).then((session) => {
-      return LeetTrackStorage.scheduleReview(session).then(() => {
-        return LeetTrackStorage.clearActiveTimer(session.slug);
-      });
-    }).then(() => {
+    const session = msg.session;
+    // Enrich tags from LeetCode GraphQL if page-scraped tags are empty
+    const enrichAndSave = async () => {
+      if (!session.tags || session.tags.length === 0) {
+        session.tags = await fetchTopicTags(session.slug);
+      }
+      await LeetTrackStorage.saveSession(session);
+      await LeetTrackStorage.scheduleReview(session);
+      await LeetTrackStorage.clearActiveTimer(session.slug);
       sendResponse({ ok: true });
-    });
+    };
+    enrichAndSave();
     return true;
   }
 

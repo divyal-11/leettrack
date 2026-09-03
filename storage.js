@@ -10,8 +10,9 @@ const LeetTrackStorage = (() => {
   const LC_SYNC_KEY = "lc_sync"; // cached LeetCode GraphQL response
   const NOTIF_SETTINGS_KEY = "notif_settings"; // { enabled, hour, minute }
 
-  // Expected solve times (seconds) per difficulty — used for struggle scoring
-  const EXPECTED_TIME = { Easy: 15 * 60, Medium: 30 * 60, Hard: 45 * 60 };
+  // Target solve times (seconds) per difficulty — what a confident solver should take.
+  // These are intentionally tighter than "allowed" times to give accurate personal ratings.
+  const EXPECTED_TIME = { Easy: 10 * 60, Medium: 20 * 60, Hard: 35 * 60 };
 
   function getAllSessions() {
     return new Promise((resolve) => {
@@ -77,23 +78,34 @@ const LeetTrackStorage = (() => {
 
   // ─── Personal Struggle Score ──────────────────────────────────────────────
   // Returns 0–100. Lower = harder for you personally.
-  // Formula: start at 100 if solved, penalise for excess time and each attempt.
+  // Formula: start at 100, penalise for excess time and wrong attempts.
+  // Time penalty ramps up sharply after the target time to differentiate ratings.
+  // Attempt penalty is heavier for Easy problems (you should get those in 1 attempt).
   // Unsolved always gets 0.
   function computeStruggleScore(session) {
     if (session.status !== "solved") return 0;
     const expected = EXPECTED_TIME[session.difficulty] || EXPECTED_TIME.Medium;
-    const timeRatio = session.duration / expected; // 1.0 = right on expected time
-    const timePenalty = Math.max(0, (timeRatio - 1) * 35); // -35pts per expected-time overage
-    const attemptPenalty = (session.attempts || 0) * 12; // -12pts per wrong answer
+    const timeRatio = session.duration / expected; // 1.0 = solved at target time
+
+    // Time penalty: 0 up to target, then ramps up. Solving at 2x target = -40 pts.
+    const timePenalty = timeRatio <= 1 ? 0 : Math.min(65, (timeRatio - 1) * 40);
+
+    // Attempt penalty: each wrong submission = -15pts (Easy), -10pts (Medium), -7pts (Hard)
+    const attemptWeights = { Easy: 15, Medium: 10, Hard: 7 };
+    const penaltyPerAttempt = attemptWeights[session.difficulty] || 10;
+    const attemptPenalty = Math.min(40, (session.attempts || 0) * penaltyPerAttempt);
+
     return Math.max(0, Math.round(100 - timePenalty - attemptPenalty));
   }
 
-  // Returns a human label + css class for a struggle score
+  // Returns a human label + css class for a struggle score.
+  // Thresholds tuned so real interview-pace solves rate as "Good" not "Easy ✓".
   function personalDifficulty(score) {
-    if (score >= 80) return { label: "Easy ✓", cls: "pd-easy" };
-    if (score >= 50) return { label: "Medium", cls: "pd-medium" };
-    if (score >= 20) return { label: "Hard", cls: "pd-hard" };
-    return { label: "Very Hard", cls: "pd-vhard" };
+    if (score >= 85) return { label: "Mastered ✓", cls: "pd-easy" };     // Fast + clean
+    if (score >= 65) return { label: "Good Pace", cls: "pd-good" };       // Normal interview pace
+    if (score >= 40) return { label: "Needed Time", cls: "pd-medium" };   // Over target but got it
+    if (score >= 15) return { label: "Struggled", cls: "pd-hard" };       // Took long or multiple tries
+    return { label: "Very Hard", cls: "pd-vhard" };                        // Barely solved it
   }
 
   // Derives an SM-2 quality rating (0–5) from a struggle score
