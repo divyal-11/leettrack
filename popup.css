@@ -141,6 +141,27 @@ body {
   background: #233140;
 }
 
+.restore-btn {
+  all: unset;
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 6px;
+  padding: 8px 0;
+  background: rgba(79, 195, 161, 0.12);
+  color: #4FC3A1;
+  font-weight: 600;
+  font-size: 11px;
+  border-radius: 7px;
+  cursor: pointer;
+  border: 1px solid rgba(79, 195, 161, 0.3);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.restore-btn:hover {
+  background: rgba(79, 195, 161, 0.22);
+  border-color: rgba(79, 195, 161, 0.55);
+}
+
 .reminder-settings {
   display: flex;
   align-items: center;

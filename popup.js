@@ -61,3 +61,25 @@ document.getElementById("openDash").addEventListener("click", () => {
   chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html") });
 });
 
+// Check if the widget is dismissed on the current tab and show the restore button
+chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  const tab = tabs[0];
+  if (!tab || !tab.url || !tab.url.includes("leetcode.com/problems/")) return;
+
+  // Ask the content script if the widget is currently hidden
+  chrome.tabs.sendMessage(tab.id, { type: "LT_GET_WIDGET_STATE" }, (res) => {
+    if (chrome.runtime.lastError) return; // content script not loaded
+    if (res && res.dismissed) {
+      document.getElementById("restoreBar").style.display = "block";
+    }
+  });
+});
+
+document.getElementById("showTimer").addEventListener("click", () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (!tab) return;
+    chrome.tabs.sendMessage(tab.id, { type: "LT_SHOW_WIDGET" });
+    window.close(); // close the popup after restoring
+  });
+});

@@ -282,6 +282,32 @@
     }
   } catch(e) {}
 
+  // Listen for messages from the popup (restore widget, query dismissed state)
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg.type === "LT_GET_WIDGET_STATE") {
+      // Tell popup whether the widget is currently hidden on this tab
+      const dismissed = box.style.display === "none";
+      sendResponse({ dismissed });
+      return true;
+    }
+    if (msg.type === "LT_SHOW_WIDGET") {
+      // Restore the widget and resume the timer
+      box.style.display = "";
+      try { sessionStorage.removeItem("lt_dismissed"); } catch(e) {}
+      if (state.paused && !state.solved) {
+        state.pausedAccum += Date.now() - state.pauseStartedAt;
+        state.paused = false;
+        state.pauseStartedAt = null;
+        persist();
+        render();
+        startTicking();
+      }
+      sendResponse({ ok: true });
+      return true;
+    }
+  });
+
+
   // Track clicks on LeetCode's submit button
   // Track clicks and keyboard shortcuts on LeetCode's submit/run buttons
   let submissionInFlight = false;
