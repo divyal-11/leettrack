@@ -9,6 +9,7 @@ Built for fun to make daily LeetCode practice a lot less chaotic.
 ## 🚀 What it does
 
 - **Zero-click timer**: Opens automatically on any LeetCode problem. Stops the clock the second you get **Accepted** — whether you click Submit or press `Ctrl + Enter`.
+- **Close or minimize the widget anytime**: Hit `−` to collapse it to just the header, or `×` to hide it completely and pause the timer. It comes back on your next problem.
 - **Accurate attempt counter**: Every real wrong submission (`Wrong Answer`, `Time Limit Exceeded`, `Runtime Error`, etc.) is counted and flashes the widget border **red** instantly. Running test cases that fail does **not** count — only actual submissions do.
 - **Honest personal difficulty rating**: Rates how hard a problem *actually was for you* — not LeetCode's generic labels. Ratings are based on how fast you solved it and how many wrong submissions you had:
   - 🟢 **Mastered ✓** — Fast and clean

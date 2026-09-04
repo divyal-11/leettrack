@@ -112,6 +112,7 @@
       <span class="lt-name">LeetTrack</span>
       <span class="lt-diff" id="lt-diff">--</span>
       <button class="lt-min" id="lt-min" title="Minimize">&minus;</button>
+      <button class="lt-close" id="lt-close" title="Close widget">&times;</button>
     </div>
     <div class="lt-body" id="lt-body">
       <div class="lt-time" id="lt-time">00:00</div>
@@ -134,6 +135,7 @@
   const elPause = box.querySelector("#lt-pause");
   const elNotes = box.querySelector("#lt-notes");
   const btnMin = box.querySelector("#lt-min");
+  const btnClose = box.querySelector("#lt-close");
   const btnReset = box.querySelector("#lt-reset");
   const btnGiveUp = box.querySelector("#lt-giveup");
 
@@ -258,6 +260,27 @@
     box.classList.toggle("lt-collapsed");
     btnMin.textContent = box.classList.contains("lt-collapsed") ? "+" : "\u2212";
   });
+
+  btnClose.addEventListener("click", () => {
+    // Pause the timer if it's running
+    if (!state.paused && !state.solved) {
+      state.paused = true;
+      state.pauseStartedAt = Date.now();
+      stopTicking();
+      persist();
+    }
+    // Hide the widget for this page visit
+    box.style.display = "none";
+    // Store dismissed slug so popup can offer to reopen it
+    try { sessionStorage.setItem("lt_dismissed", slug); } catch(e) {}
+  });
+
+  // If the user previously dismissed this widget on this tab, keep it hidden
+  try {
+    if (sessionStorage.getItem("lt_dismissed") === slug) {
+      box.style.display = "none";
+    }
+  } catch(e) {}
 
   // Track clicks on LeetCode's submit button
   // Track clicks and keyboard shortcuts on LeetCode's submit/run buttons

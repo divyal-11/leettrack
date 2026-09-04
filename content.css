@@ -66,6 +66,18 @@
 }
 #leettrack-widget .lt-min:hover { color: #EDEFF2; }
 
+#leettrack-widget .lt-close {
+  all: unset;
+  cursor: pointer;
+  color: #8B98A5;
+  font-size: 15px;
+  width: 16px;
+  text-align: center;
+  line-height: 1;
+  transition: color 0.15s;
+}
+#leettrack-widget .lt-close:hover { color: #D9534F; }
+
 #leettrack-widget .lt-body {
   padding: 12px 10px 10px;
 }
