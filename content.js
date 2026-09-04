@@ -309,19 +309,24 @@
     true
   );
 
-  // listen for verdicts coming from inject.js
+  // Listen for verdicts coming from inject.js (network interceptor)
+  // Guard: only process this if a submission is actually in-flight.
+  // This prevents stale test-case responses from being counted as attempts.
   window.addEventListener("message", (event) => {
     if (event.source !== window) return;
     const data = event.data;
     if (!data || data.source !== "leettrack" || data.type !== "SUBMISSION_RESULT") return;
     if (state.solved) return;
 
+    // Only act on this network result if the user actually submitted (not just ran test cases)
+    if (!submissionInFlight) return;
+
     submissionInFlight = false;
 
     if (data.payload.accepted) {
       finalizeAndSave("solved");
     } else {
-      // Wrong Answer / TLE / Runtime Error, etc. — count as an attempt
+      // Wrong Answer / TLE / Runtime Error — count as an attempt
       state.attempts += 1;
       persist();
       render();
@@ -333,85 +338,59 @@
     }
   });
 
-  // ── DOM-based submission detection fallback ────────────────────────────────
-  let lastDetectedAttemptText = "";
-  let lastAttemptTime = 0;
+  // ── DOM-based submission detection (Accepted only) ───────────────────────
+  // IMPORTANT: The DOM scanner is ONLY used to detect "Accepted" as a fallback.
+  // We deliberately do NOT count failed verdicts (Wrong Answer, TLE, etc.) from
+  // the DOM because that text stays on screen from previous test case runs, which
+  // caused false attempt counts when submitting after a failed "Run Code".
+  // Failed attempts are handled exclusively by the network interceptor (inject.js).
 
   function scanDOMForSubmissionResult() {
     if (state.solved) return;
-    // Only search DOM if submit button was clicked in the last 45s AND submission is in flight
     if (!submissionInFlight) return;
-    if (Date.now() - lastSubmitClickTime > 45000) {
+    if (Date.now() - lastSubmitClickTime > 60000) {
       submissionInFlight = false;
       return;
     }
 
-    const resultElements = document.querySelectorAll(
+    const greenElements = document.querySelectorAll(
       "[data-e2e-locator='submission-result'], " +
-      "div[class*='text-green'], span[class*='text-green'], div[class*='text-sd-easy'], " +
-      "div[class*='text-red'], span[class*='text-red'], div[class*='text-sd-hard'], span[class*='text-sd-hard']"
+      "div[class*='text-green'], span[class*='text-green'], div[class*='text-sd-easy']"
     );
 
-    for (const el of resultElements) {
+    for (const el of greenElements) {
       const text = el.textContent.trim();
+      if (text !== "Accepted") continue;
 
-      // Check if inside testcase runner / "Test Result" / "Case 1" container -> MUST IGNORE
-      const parent = el.closest(
-        "[data-layout-path], [class*='result'], [class*='console'], [class*='tab'], [role='tabpanel'], div"
-      );
-      const parentText = parent ? parent.textContent : "";
-
-      const isTestcaseTab =
-        parentText.includes("Test Result") ||
-        parentText.includes("Testcase") ||
-        parentText.includes("Case 1") ||
-        parentText.includes("Case 2") ||
-        parentText.includes("Case 3") ||
-        parentText.includes("Expected") ||
-        parentText.includes("Output");
-
-      if (isTestcaseTab) {
-        continue; // Skip sample testcase runs completely!
-      }
-
-      // Accepted detection for real submissions
-      if (text === "Accepted") {
+      // Skip if this Accepted is inside the Test Result / testcase panel (Run Code output)
+      // Walk up the tree looking for any element that is clearly a testcase container
+      let node = el.parentElement;
+      let isTestPanel = false;
+      for (let depth = 0; depth < 12 && node; depth++) {
+        const nodeText = node.textContent || "";
         if (
-          parentText.includes("Beats") ||
-          parentText.includes("Submissions") ||
-          parentText.includes("Submission Result") ||
-          el.getAttribute("data-e2e-locator") === "submission-result"
+          node.getAttribute("data-e2e-locator") === "console-testcase-panel" ||
+          (nodeText.includes("Test Result") && nodeText.includes("Case 1")) ||
+          (nodeText.includes("Expected") && nodeText.includes("Output") && nodeText.includes("Input"))
         ) {
-          submissionInFlight = false;
-          finalizeAndSave("solved");
-          return;
+          isTestPanel = true;
+          break;
         }
+        node = node.parentElement;
       }
+      if (isTestPanel) continue;
 
-      // Failed verdict detection (DOM fallback for when network intercept missed it)
-      const failedVerdicts = [
-        "Wrong Answer",
-        "Time Limit Exceeded",
-        "Runtime Error",
-        "Memory Limit Exceeded",
-        "Compile Error",
-        "Output Limit Exceeded",
-      ];
-      if (failedVerdicts.includes(text)) {
-        const now = Date.now();
-        if (text !== lastDetectedAttemptText || now - lastAttemptTime > 6000) {
-          lastDetectedAttemptText = text;
-          lastAttemptTime = now;
-          state.attempts += 1;
-          submissionInFlight = false;
-          persist();
-          render();
-          // Flash red border on widget
-          box.style.boxShadow = "0 0 0 2px #D9534F";
-          elStatus.textContent = `❌ ${text} · Attempt ${state.attempts}`;
-          elStatus.className = "lt-status lt-status-unsolved";
-          setTimeout(() => { box.style.boxShadow = ""; }, 2000);
-        }
+      // Only accept this as a real submission Accepted if we see runtime/beats context
+      const parentText = el.closest("[data-layout-path], main, #app, body")?.textContent || "";
+      if (
+        el.getAttribute("data-e2e-locator") === "submission-result" ||
+        parentText.includes("Beats") ||
+        parentText.includes("Submissions") ||
+        parentText.includes("Submission Result")
+      ) {
+        submissionInFlight = false;
+        finalizeAndSave("solved");
+        return;
       }
     }
   }
