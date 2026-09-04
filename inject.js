@@ -7,27 +7,49 @@
   if (window._leettrack_injected) return;
   window._leettrack_injected = true;
 
+  // Known verdict strings for real submissions
+  const ACCEPTED_MSG = "accepted";
+  const FAILED_MSGS = [
+    "wrong answer",
+    "time limit exceeded",
+    "runtime error",
+    "memory limit exceeded",
+    "compile error",
+    "output limit exceeded",
+    "internal error",
+  ];
+  const PENDING_MSGS = ["pending", "judging", "compiling", "started", "running"];
+
   function isSubmissionEndpoint(url) {
     if (!url || typeof url !== "string") return false;
     const lower = url.toLowerCase();
-    // Exclude explicit interpret / run-code endpoints
-    if (lower.includes("interpret_solution") || lower.includes("runcode") || lower.includes("testcase")) {
+
+    // Explicitly exclude interpret / run-code / testcase endpoints by URL path
+    if (
+      lower.includes("interpret_solution") ||
+      lower.includes("runcode") ||
+      lower.includes("testcase") ||
+      lower.includes("/run/") ||
+      lower.includes("/interpret/")
+    ) {
       return false;
     }
+
     return (
       lower.includes("/submissions/detail/") ||
       lower.includes("/submissions/check/") ||
-      lower.includes("/check/") ||
+      // Only match /check/ if it looks like a submission check (not generic /check/)
+      /\/problems\/[^/]+\/check\//.test(lower) ||
       lower.includes("/submit/") ||
       lower.includes("/graphql")
     );
   }
 
-  // Returns true if this payload is from "Run Code" / sample testcase check, NOT a real submission
+  // Returns true if this payload is from "Run Code" / sample testcase, NOT a real submission
   function isTestcaseRun(data) {
     if (!data || typeof data !== "object") return false;
 
-    // 1. Check REST interpret / runcode fields
+    // 1. REST interpret / runcode payload fields
     if (
       data.code_answer !== undefined ||
       data.expected_code_answer !== undefined ||
@@ -37,12 +59,13 @@
       data.run_success !== undefined ||
       data.correct_run_testcases !== undefined ||
       (typeof data.submission_id === "string" &&
-        (data.submission_id.startsWith("interpret_") || data.submission_id.startsWith("runcode_")))
+        (data.submission_id.startsWith("interpret_") ||
+          data.submission_id.startsWith("runcode_")))
     ) {
       return true;
     }
 
-    // 2. Check GraphQL interpret / runCode fields
+    // 2. GraphQL interpret / runCode operation fields
     if (data.data) {
       if (
         data.data.interpretSolution ||
@@ -53,8 +76,15 @@
       ) {
         return true;
       }
+      // Also check inside submissionDetails / submissionStatus for interpret markers
       const sub = data.data.submissionDetails || data.data.submissionStatus;
-      if (sub && (sub.interpret_id || sub.code_answer || sub.expected_code_answer || sub.run_success !== undefined)) {
+      if (
+        sub &&
+        (sub.interpret_id ||
+          sub.code_answer !== undefined ||
+          sub.expected_code_answer !== undefined ||
+          sub.run_success !== undefined)
+      ) {
         return true;
       }
     }
@@ -62,29 +92,27 @@
     return false;
   }
 
+  function normaliseVerdict(msg) {
+    if (!msg || typeof msg !== "string") return null;
+    const lower = msg.trim().toLowerCase();
+    if (PENDING_MSGS.includes(lower)) return null; // still processing
+    if (lower === ACCEPTED_MSG) return { statusMsg: msg.trim(), accepted: true };
+    if (FAILED_MSGS.includes(lower)) return { statusMsg: msg.trim(), accepted: false };
+    return null; // unrecognised — ignore
+  }
+
   function extractVerdict(data) {
     if (!data || typeof data !== "object") return null;
 
     // Discard any testcase / "Run Code" execution
-    if (isTestcaseRun(data)) {
-      return null;
-    }
+    if (isTestcaseRun(data)) return null;
 
-    // 1. Direct REST submission check response
+    // 1. Direct REST submission check response (polling /check/ endpoint)
     if (data.status_msg || data.statusDisplay) {
-      const msg = data.status_msg || data.statusDisplay;
-      if (["pending", "judging", "compiling", "started"].includes(msg.toLowerCase())) return null;
-      // ⚠️ DO NOT discard non-SUCCESS states — they are failed submissions (WA, TLE, RE, etc.)
-      // The old guard `if (data.state && data.state !== "SUCCESS") return null;` was blocking attempts.
-      const accepted = msg.toLowerCase() === "accepted";
-      const failed = ["wrong answer", "time limit exceeded", "runtime error",
-                      "memory limit exceeded", "compile error", "output limit exceeded"]
-                      .includes(msg.toLowerCase());
-      if (!accepted && !failed) return null; // ignore truly unrecognised states
-      return { statusMsg: msg, accepted };
+      return normaliseVerdict(data.status_msg || data.statusDisplay);
     }
 
-    // 2. GraphQL response for submission status / check
+    // 2. GraphQL response (submissionDetails / submissionStatus / checkSubmissionStatus)
     if (data.data) {
       const sub =
         data.data.submissionDetails ||
@@ -92,13 +120,8 @@
         data.data.checkSubmissionStatus ||
         data.data.userCheckSubmissionStatus;
 
-      if (sub && (sub.statusDisplay || sub.status_msg)) {
-        const msg = sub.statusDisplay || sub.status_msg;
-        if (["pending", "judging", "compiling", "started"].includes(msg.toLowerCase())) return null;
-        return {
-          statusMsg: msg,
-          accepted: msg.toLowerCase() === "accepted",
-        };
+      if (sub) {
+        return normaliseVerdict(sub.statusDisplay || sub.status_msg);
       }
     }
 
@@ -108,13 +131,9 @@
   function handleData(data) {
     try {
       const verdict = extractVerdict(data);
-      if (verdict && verdict.statusMsg) {
+      if (verdict) {
         window.postMessage(
-          {
-            source: "leettrack",
-            type: "SUBMISSION_RESULT",
-            payload: verdict,
-          },
+          { source: "leettrack", type: "SUBMISSION_RESULT", payload: verdict },
           "*"
         );
       }
@@ -128,11 +147,7 @@
     try {
       const url = typeof args[0] === "string" ? args[0] : args[0]?.url || "";
       if (isSubmissionEndpoint(url)) {
-        response
-          .clone()
-          .json()
-          .then(handleData)
-          .catch(() => {});
+        response.clone().json().then(handleData).catch(() => {});
       }
     } catch (e) {}
     return response;
@@ -151,9 +166,7 @@
     if (isSubmissionEndpoint(this._ltUrl)) {
       this.addEventListener("load", function () {
         try {
-          if (this.responseText) {
-            handleData(JSON.parse(this.responseText));
-          }
+          if (this.responseText) handleData(JSON.parse(this.responseText));
         } catch (e) {}
       });
     }

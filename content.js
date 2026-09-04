@@ -265,12 +265,21 @@
   let lastSubmitClickTime = 0;
 
   // 1. Keyboard shortcut: Ctrl + Enter / Cmd + Enter (LeetCode submit shortcut)
+  // Only treat as a submit if focus is in the code editor area (not search boxes etc.)
   document.addEventListener(
     "keydown",
     (e) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "Enter" || e.code === "Enter" || e.code === "NumpadEnter")) {
-        submissionInFlight = true;
-        lastSubmitClickTime = Date.now();
+        // Check active element is inside the code editor, not some other input
+        const active = document.activeElement;
+        const inEditor =
+          !active ||
+          active.tagName === "BODY" ||
+          active.closest(".monaco-editor, [class*='CodeMirror'], [class*='editor'], [data-mode-id], [class*='code-area']");
+        if (inEditor) {
+          submissionInFlight = true;
+          lastSubmitClickTime = Date.now();
+        }
       }
     },
     true
@@ -281,33 +290,39 @@
     "click",
     (e) => {
       const el = e.target.closest("button, [role='button'], div");
-      if (el) {
-        const txt = (el.textContent || "").trim().toLowerCase();
-        
-        // If user clicked "Run" / "Run Code" -> NOT a submission, clear in-flight flag
-        if (
-          txt === "run" ||
-          txt === "run code" ||
-          txt.startsWith("run") ||
-          el.getAttribute("data-e2e-locator") === "console-run-button"
-        ) {
-          submissionInFlight = false;
-          return;
-        }
+      if (!el) return;
+      const txt = (el.textContent || "").trim().toLowerCase();
+      const locator = el.getAttribute("data-e2e-locator") || "";
 
-        // If user clicked "Submit" -> mark submission in-flight
-        if (
-          txt === "submit" ||
-          txt.startsWith("submit") ||
-          el.getAttribute("data-e2e-locator") === "console-submit-button"
-        ) {
-          submissionInFlight = true;
-          lastSubmitClickTime = Date.now();
-        }
+      // "Run" / "Run Code" button — NOT a submission; clear in-flight to avoid false positives
+      if (
+        locator === "console-run-button" ||
+        txt === "run" ||
+        txt === "run code"
+      ) {
+        submissionInFlight = false;
+        return;
+      }
+
+      // "Submit" button — mark submission in-flight
+      if (
+        locator === "console-submit-button" ||
+        txt === "submit"
+      ) {
+        submissionInFlight = true;
+        lastSubmitClickTime = Date.now();
       }
     },
     true
   );
+
+  // Safety valve: if no verdict arrives within 90s of submitting, clear the flag
+  // so a future Run Code click or Ctrl+Enter isn’t blocked by a stuck state.
+  setInterval(() => {
+    if (submissionInFlight && Date.now() - lastSubmitClickTime > 90000) {
+      submissionInFlight = false;
+    }
+  }, 10000);
 
   // Listen for verdicts coming from inject.js (network interceptor)
   // Guard: only process this if a submission is actually in-flight.
